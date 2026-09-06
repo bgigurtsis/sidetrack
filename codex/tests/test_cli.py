@@ -22,7 +22,7 @@ def events(answer="answer", complete=True):
 
 class CLITests(unittest.TestCase):
     def setUp(self):
-        self.root = Path(tempfile.mkdtemp(prefix="sidetrack-cli-test-"))
+        self.root = Path(tempfile.mkdtemp(prefix="sidetrack-cli-test-")).resolve()
         (self.root / "ref.py").write_text("def double(x):\n    return x * 2\n")
 
     def invoke(self, args, outputs):

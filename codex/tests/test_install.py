@@ -16,7 +16,7 @@ SPEC.loader.exec_module(installer)
 
 class InstallerTests(unittest.TestCase):
     def setUp(self):
-        self.root = Path(tempfile.mkdtemp(prefix="sidetrack-test-"))
+        self.root = Path(tempfile.mkdtemp(prefix="sidetrack-test-")).resolve()
 
     def run_action(self, action, *args):
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
