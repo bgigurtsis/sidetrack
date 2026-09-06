@@ -6,19 +6,19 @@ sign-in, with no Portal or API key.
 
 | Client | Worker | Routing |
 | --- | --- | --- |
-| Claude Code | Haiku | Hooks redirect large reads; skills handle generation |
+| Claude Code | Haiku, or Luna with an OpenAI key (opt-in) | Hooks redirect large reads; skills handle generation |
 | Codex | Luna | Global instructions request native subagents |
 
 ## Install
 
-**Claude Code** — requires Python 3.10+:
+**Claude Code** - requires Python 3.10+:
 
 ```sh
 claude plugin marketplace add bgigurtsis/sidetrack
 claude plugin install sidetrack@sidetrack
 ```
 
-**Codex** — requires Python 3.11+, a current Codex client, and Luna access:
+**Codex** - requires Python 3.11+, a current Codex client, and Luna access:
 
 ```sh
 git clone https://github.com/bgigurtsis/sidetrack.git
@@ -47,7 +47,7 @@ task. Workers consume subscription allowance; savings vary and are not guarantee
 
 - [Claude Code setup, settings, and manual install](docs/claude-code.md)
 - [Codex setup and removal](codex/README.md)
-- [Codex test results](codex/TESTING.md) · [Run a live test](codex/smoke-test.md)
+- [Codex test results](codex/TESTING.md) Â· [Run a live test](codex/smoke-test.md)
 
 Inspired by Spotify's [shunt](https://github.com/spotify/portal-ai-plugins).
 [MIT licensed](LICENSE).
