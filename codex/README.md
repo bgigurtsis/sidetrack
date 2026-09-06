@@ -43,5 +43,6 @@ python3 codex/install.py uninstall
 Settings and sign-in are preserved. Removal archives managed files in recoverable
 backups. Workers consume subscription allowance; model availability and limits apply.
 
-[Detailed setup](setup.md) · [CLI options](CLI.md) ·
-[Comparison with subagents](CLI-COMPARISON.md) · [Tests](TESTING.md)
+[Detailed setup](setup.md) - [CLI options](CLI.md) -
+[Comparison with subagents](CLI-COMPARISON.md) - [Tests](TESTING.md)
+
