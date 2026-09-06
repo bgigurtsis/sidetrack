@@ -36,5 +36,13 @@ Both CLI calls first failed to verify sign-in inside the sandbox, then succeeded
 through normal scoped execution approval. No credentials were copied or controls
 bypassed. CLI timings exclude the parent task and approval overhead.
 
+The published repository was pulled into a separate clean checkout and used for
+a real global install, repeat install, uninstall, and reinstall. Managed file
+hashes matched; previous instructions and hooks were restored on removal;
+config.toml was unchanged. A fresh Sol task after reinstall again received the
+hook denial, successfully used both Luna CLI modes, and passed the value,
+annotation, and docstring checks. All six GitHub Actions jobs passed for the
+tested implementation (`0769913`).
+
 These are correctness and workflow checks, not a guarantee of savings or account
 eligibility. Follow [the smoke test](smoke-test.md) to verify your installation.

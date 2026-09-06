@@ -26,3 +26,20 @@ python3 -c "from arithmetic import triple, quadruple; assert all(triple(v)==3*v 
 To check installed routing, open a new Codex task and ask it to use `$sidetrack-luna`
 on these files, with a different new output target. It should invoke the installed
 Python script; it should not spawn a native subagent. Review the tool calls.
+
+## Test the installed hook
+
+After reviewing/trusting Sidetrack in `/hooks`, create a scratch fixture:
+
+```sh
+python3 -c "from pathlib import Path; Path('large_fixture.py').write_text('# fixture line\n' * 351)"
+```
+
+In a new Codex task with a main model other than Luna, ask for one intentional
+`cat large_fixture.py` probe (Windows: `Get-Content -Raw large_fixture.py`). The
+hook should deny the call before file content appears. Then ask for a 10-line
+excerpt, which should succeed, and a focused summary using the installed Luna CLI.
+If the probe runs, inspect `/hooks` for trust/enablement and check the client version.
+
+For a complete installation check, run `uninstall`, confirm other settings and
+hooks remain, then `install` again and repeat this probe in a fresh task.
