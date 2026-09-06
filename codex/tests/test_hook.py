@@ -76,6 +76,20 @@ class HookInstallTests(unittest.TestCase):
     setUp = test_install.InstallerTests.setUp
     run_action = test_install.InstallerTests.run_action
 
+    def test_checkout_newlines_do_not_change_hook_identity(self):
+        self.run_action("install")
+        installer = test_install.installer
+        before = (self.root / "hooks.json").read_bytes()
+        source = Path(tempfile.mkdtemp(prefix="sidetrack-crlf-"))
+        for name in installer.ASSETS:
+            dest = source / installer.SOURCES[name]
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            data = (installer.SOURCE / installer.SOURCES[name]).read_bytes()
+            dest.write_bytes(data.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+        with patch.object(installer, "SOURCE", source):
+            self.assertEqual(self.run_action("install"), 0)
+        self.assertEqual((self.root / "hooks.json").read_bytes(), before)
+
     def test_unrelated_hooks_restored_exactly(self):
         original = b'{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"echo hello"}]}]}}\n'
         (self.root / "hooks.json").write_bytes(original)

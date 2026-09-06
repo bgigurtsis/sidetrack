@@ -16,7 +16,7 @@ hook deny/allow decisions, stdin protocol, preservation of unrelated hooks, back
 and removal.
 Tests do not call models. They retain temporary test directories for inspection.
 
-On the local Windows host, 36 tests ran: 35 passed and the symlink test was skipped
+On the local Windows host, 37 tests ran: 36 passed and the symlink test was skipped
 because the host does not permit symlink creation. GitHub Actions runs the suite
 on Windows, macOS, and Linux with Python 3.11 and 3.13; see the latest Actions result.
 
@@ -27,6 +27,14 @@ correctly identified both exceptions and their line references in a 601-line fil
 Two CLI writer trials generated the requested code, with 16 independent checks
 passing per output. Native-subagent trials provided the comparison baseline;
 Sidetrack no longer installs that method.
+
+A fresh Terra task with the trusted hook attempted `Get-Content -Raw` on the
+601-line fixture. The hook denied it. The task then called the installed Luna CLI:
+the reader identified both exceptions at lines 90 and 459 (6.563 seconds), and the
+writer generated two functions (7.071 seconds) that passed six value checks.
+Both CLI calls first failed to verify sign-in inside the sandbox, then succeeded
+through normal scoped execution approval. No credentials were copied or controls
+bypassed. CLI timings exclude the parent task and approval overhead.
 
 These are correctness and workflow checks, not a guarantee of savings or account
 eligibility. Follow [the smoke test](smoke-test.md) to verify your installation.

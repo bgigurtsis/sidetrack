@@ -139,7 +139,8 @@ def install(root, dry_run=False):
     state = read_state(root)
     if state:
         check_owned(root, state)
-    assets = {name: (SOURCE / SOURCES[name]).read_bytes() for name in ASSETS}
+    # Keep hook identity stable across Git's Windows newline conversion.
+    assets = {name: (SOURCE / SOURCES[name]).read_bytes().replace(b"\r\n", b"\n") for name in ASSETS}
     compile(assets[ASSETS[0]], ASSETS[0], "exec")
     compile(assets[ASSETS[2]], ASSETS[2], "exec")
     hook_path = target(root, "hooks.json")
