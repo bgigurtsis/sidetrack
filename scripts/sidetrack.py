@@ -1,21 +1,29 @@
 #!/usr/bin/env python3
-"""sidetrack: send bulk file reading and boilerplate generation to Claude Haiku instead of your main model.
+"""sidetrack: send bulk file reading and boilerplate generation to a cheap worker model instead of your main model.
 
-Works with a Claude Code subscription alone: the worker is invoked through `claude -p --model haiku`, so no API key
-is needed and usage is billed to your existing plan.
+Default backend ("claude"): Claude Haiku through `claude -p --model haiku`. Works with a Claude Code subscription
+alone; no API key, usage billed to your existing plan.
+Optional backend ("openai"): any OpenAI-compatible chat-completions endpoint with an API key, e.g. GPT-5.6 Luna.
 
 Subcommands
   hook-read    PreToolUse hook for Read.  Blocks whole-file reads of large files (stdin: hook JSON).
   hook-bash    PreToolUse hook for Bash.  Blocks cat/less/more (and untargeted head/tail) on large files.
-  read         --question Q --paths P [P ...]           Ask Haiku about files; prints bullets.
+  read         --question Q --paths P [P ...]           Ask the worker about files; prints bullets.
   write        --spec S --reference R [R ...] [--target T] [--context C ...] [--force]
                Generate a file matching the reference's patterns; writes to T or stdout.
 
 Environment (all optional)
-  SIDETRACK_MIN_LINES   line threshold above which reads are redirected (default 350)
-  SIDETRACK_MODEL       worker model passed to `claude --model` (default haiku)
-  SIDETRACK_CLAUDE_BIN  path to the claude executable (default: CLAUDE_CODE_EXECPATH, then `claude` on PATH)
-  SIDETRACK_DISABLE=1   hooks allow everything (escape hatch)
+  SIDETRACK_MIN_LINES        line threshold above which reads are redirected (default 350)
+  SIDETRACK_BACKEND          "claude" (default) or "openai"
+  SIDETRACK_DISABLE=1        hooks allow everything (escape hatch)
+  -- claude backend --
+  SIDETRACK_MODEL            worker model passed to `claude --model` (default haiku)
+  SIDETRACK_CLAUDE_BIN       path to the claude executable (default: CLAUDE_CODE_EXECPATH, then `claude` on PATH)
+  -- openai backend --
+  SIDETRACK_OPENAI_MODEL     model name (default gpt-5.6-luna)
+  SIDETRACK_OPENAI_EFFORT    reasoning_effort (default low)
+  SIDETRACK_OPENAI_BASE_URL  endpoint (default https://api.openai.com/v1)
+  OPENAI_API_KEY             API key; else read from SIDETRACK_OPENAI_KEY_FILE or ~/.claude/sidetrack/openai_key
 """
 from __future__ import annotations
 
@@ -29,11 +37,18 @@ import shutil
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 MIN_LINES = int(os.environ.get("SIDETRACK_MIN_LINES", "350"))
+BACKEND = os.environ.get("SIDETRACK_BACKEND", "claude").lower()
 MODEL = os.environ.get("SIDETRACK_MODEL", "haiku")
+OPENAI_MODEL = os.environ.get("SIDETRACK_OPENAI_MODEL", "gpt-5.6-luna")
+OPENAI_EFFORT = os.environ.get("SIDETRACK_OPENAI_EFFORT", "low")
+OPENAI_BASE_URL = os.environ.get("SIDETRACK_OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+OPENAI_KEY_FILE = Path(os.environ.get("SIDETRACK_OPENAI_KEY_FILE") or Path.home() / ".claude" / "sidetrack" / "openai_key")
 SCRIPT = str(HERE / "sidetrack.py").replace("\\", "/")
 INVOKE = f'python "{SCRIPT}"'
 
@@ -94,6 +109,64 @@ def claude_bin() -> list[str]:
 
 
 def ask_worker(system: str, user: str) -> str:
+    if BACKEND == "openai":
+        return ask_openai(system, user)
+    if BACKEND != "claude":
+        sys.exit(f'sidetrack: unknown SIDETRACK_BACKEND "{BACKEND}" (use "claude" or "openai")')
+    return ask_claude(system, user)
+
+
+def load_openai_key() -> str:
+    if os.environ.get("OPENAI_API_KEY"):
+        return os.environ["OPENAI_API_KEY"]
+    try:
+        key = OPENAI_KEY_FILE.read_text(encoding="utf-8").strip()
+        if key:
+            return key
+    except OSError:
+        pass
+    sys.exit(f"sidetrack: no OpenAI key. Set OPENAI_API_KEY, or put the key on one line in {OPENAI_KEY_FILE}")
+
+
+def ask_openai(system: str, user: str, max_tokens: int = 16384, retries: int = 3) -> str:
+    """One chat-completions call to an OpenAI-compatible endpoint. Standard library only."""
+    body = {
+        "model": OPENAI_MODEL,
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        "max_completion_tokens": max_tokens,
+        "reasoning_effort": OPENAI_EFFORT,
+    }
+    req = urllib.request.Request(
+        f"{OPENAI_BASE_URL}/chat/completions",
+        data=json.dumps(body).encode(),
+        headers={"Authorization": f"Bearer {load_openai_key()}", "Content-Type": "application/json"},
+    )
+    t0 = time.time()
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(req, timeout=300) as r:
+                data = json.load(r)
+            break
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode(errors="replace")[:500]
+            if e.code in (429, 500, 502, 503) and attempt < retries - 1:
+                time.sleep(2 ** attempt)
+                continue
+            sys.exit(f"sidetrack: HTTP {e.code} from {OPENAI_BASE_URL}: {detail}")
+        except (urllib.error.URLError, TimeoutError) as e:
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)
+                continue
+            sys.exit(f"sidetrack: connection failed: {e}")
+    u = data.get("usage", {})
+    sys.stderr.write(
+        f"sidetrack: backend=openai model={OPENAI_MODEL} effort={OPENAI_EFFORT} "
+        f"in={u.get('prompt_tokens', '?')} out={u.get('completion_tokens', '?')} ({time.time() - t0:.1f}s)\n"
+    )
+    return data["choices"][0]["message"]["content"] or ""
+
+
+def ask_claude(system: str, user: str) -> str:
     """Run one non-interactive Haiku turn through the Claude Code CLI. No tools, nothing persisted."""
     # --setting-sources "" and --strict-mcp-config matter: without them the nested CLI loads the user's skills,
     # plugins, MCP tool descriptions and CLAUDE.md, which can be >100k tokens per call and would erase the savings.
@@ -120,7 +193,7 @@ def ask_worker(system: str, user: str) -> str:
         sys.exit(f"sidetrack: worker error: {data.get('result', '')[:500]}")
     usage = data.get("usage", {})
     sys.stderr.write(
-        f"sidetrack: model={MODEL} in={usage.get('input_tokens', '?')} "
+        f"sidetrack: backend=claude model={MODEL} in={usage.get('input_tokens', '?')} "
         f"cache_write={usage.get('cache_creation_input_tokens', 0)} cache_read={usage.get('cache_read_input_tokens', 0)} "
         f"out={usage.get('output_tokens', '?')} "
         f"cost=${data.get('total_cost_usd', 0):.4f} ({time.time() - t0:.1f}s)\n"

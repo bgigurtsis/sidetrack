@@ -1,11 +1,11 @@
 ---
 name: sidetrack-read
-description: Delegate reading of large files (or many files) to Claude Haiku and receive a short bulleted answer instead of loading the files into context. Use when a Read is blocked by the sidetrack hook, when a question spans several files, or when you need to understand what a large file does before deciding which section to read.
+description: Delegate reading of large files (or many files) to a cheap worker model (Claude Haiku by default) and receive a short bulleted answer instead of loading the files into context. Use when a Read is blocked by the sidetrack hook, when a question spans several files, or when you need to understand what a large file does before deciding which section to read.
 ---
 
 # sidetrack-read
 
-Send files plus a question to Haiku. Only the answer enters your context. The files never do.
+Send files plus a question to the worker model (Haiku by default, or Luna via the openai backend). Only the answer enters your context. The files never do.
 
 ## Invocation
 

@@ -85,6 +85,37 @@ def test_hook_bash_allows_targeted_commands(monkeypatch, big_file, template):
     sidetrack.hook_bash()  # must not raise
 
 
+def test_backend_defaults_to_claude(monkeypatch):
+    monkeypatch.delenv("SIDETRACK_BACKEND", raising=False)
+    sidetrack = load_sidetrack(monkeypatch)
+    assert sidetrack.BACKEND == "claude"
+
+
+def test_backend_openai_is_selected_and_routed(monkeypatch):
+    monkeypatch.setenv("SIDETRACK_BACKEND", "openai")
+    sidetrack = load_sidetrack(monkeypatch)
+    assert sidetrack.BACKEND == "openai"
+    monkeypatch.setattr(sidetrack, "ask_openai", lambda s, u: f"openai:{u}")
+    monkeypatch.setattr(sidetrack, "ask_claude", lambda s, u: "claude")
+    assert sidetrack.ask_worker("sys", "hi") == "openai:hi"
+
+
+def test_backend_unknown_exits(monkeypatch):
+    monkeypatch.setenv("SIDETRACK_BACKEND", "bogus")
+    sidetrack = load_sidetrack(monkeypatch)
+    with pytest.raises(SystemExit):
+        sidetrack.ask_worker("sys", "hi")
+
+
+def test_openai_key_from_file(monkeypatch, tmp_path):
+    keyfile = tmp_path / "k"
+    keyfile.write_text("sk-test\n")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("SIDETRACK_OPENAI_KEY_FILE", str(keyfile))
+    sidetrack = load_sidetrack(monkeypatch)
+    assert sidetrack.load_openai_key() == "sk-test"
+
+
 def test_strip_fences(monkeypatch):
     sidetrack = load_sidetrack(monkeypatch)
     assert sidetrack.strip_fences("```python\nx = 1\n```") == "x = 1\n"

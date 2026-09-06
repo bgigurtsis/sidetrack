@@ -1,11 +1,11 @@
 ---
 name: sidetrack-write
-description: Delegate generation of predictable boilerplate (tests that mirror existing tests, config stubs, type stubs, fixtures, repetitive adapters) to Claude Haiku, writing the result straight to disk so the generated code never enters your context. Use when the output is fully determined by a spec plus an existing reference file.
+description: Delegate generation of predictable boilerplate (tests that mirror existing tests, config stubs, type stubs, fixtures, repetitive adapters) to a cheap worker model (Claude Haiku by default), writing the result straight to disk so the generated code never enters your context. Use when the output is fully determined by a spec plus an existing reference file.
 ---
 
 # sidetrack-write
 
-Haiku generates a file that matches a reference file's patterns. The code is written to disk directly.
+The worker model (Haiku by default, or Luna via the openai backend) generates a file that matches a reference file's patterns. The code is written to disk directly.
 
 ## Invocation
 

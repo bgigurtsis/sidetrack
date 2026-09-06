@@ -2,7 +2,7 @@
 
 Stop paying frontier-model prices for grunt work. sidetrack is a Claude Code plugin that sends big file reads and boilerplate generation to Claude Haiku, so your main model only sees the answer.
 
-Works with a Claude Code subscription alone. No API key, no extra service. Haiku is called through `claude -p`, so it bills against the plan you already have.
+Works with a Claude Code subscription alone. No API key, no extra service. Haiku is called through `claude -p`, so it bills against the plan you already have. If you do have an OpenAI key, you can switch the worker to GPT-5.6 Luna instead (see [Using Luna](#using-luna-with-an-openai-api-key)).
 
 ## Setup
 
@@ -21,7 +21,7 @@ Two hooks and two skills.
 
 **Hooks** run before every Read and Bash call. If Claude tries to read a whole file over 350 lines, or run `cat` on one, the hook blocks it and tells Claude to use sidetrack instead. Targeted reads always pass: Read with `offset`/`limit`, piped commands like `cat file | grep`, `head -n 40`, `sed -n`.
 
-**`sidetrack read`** sends files plus a question to Haiku and returns a short bulleted answer. Ask again with the same files for follow-ups. The files never enter your main context.
+**`sidetrack read`** sends files plus a question to the worker and returns a short bulleted answer. Ask again with the same files for follow-ups. The files never enter your main context.
 
 ```bash
 python "$CLAUDE_PLUGIN_ROOT/scripts/sidetrack.py" read --question "Which functions touch the database?" --paths src/service.py src/handler.py
@@ -42,13 +42,27 @@ Set these in your shell or in the `env` block of `~/.claude/settings.json`.
 | Variable | Default | What it does |
 |---|---|---|
 | `SIDETRACK_MIN_LINES` | `350` | Files longer than this get redirected |
-| `SIDETRACK_MODEL` | `haiku` | Worker model, any value `claude --model` accepts |
+| `SIDETRACK_BACKEND` | `claude` | `claude` uses Haiku through your subscription. `openai` uses an API key, see below |
+| `SIDETRACK_MODEL` | `haiku` | Worker model for the `claude` backend, any value `claude --model` accepts |
 | `SIDETRACK_DISABLE` | unset | Set to `1` to switch the hooks off |
 | `SIDETRACK_CLAUDE_BIN` | auto | Path to `claude` if it isn't on your PATH |
 
+## Using Luna with an OpenAI API key
+
+Not the default. Pick this if you have an OpenAI key and want GPT-5.6 Luna as the worker instead of Haiku. Luna is cheaper per token and answers in a couple of seconds, because the call goes straight to the API instead of through the Claude Code CLI.
+
+1. Put your key on one line in `~/.claude/sidetrack/openai_key`, or export `OPENAI_API_KEY`.
+2. Add to `~/.claude/settings.json`:
+
+```json
+{ "env": { "SIDETRACK_BACKEND": "openai" } }
+```
+
+Optional overrides: `SIDETRACK_OPENAI_MODEL` (default `gpt-5.6-luna`), `SIDETRACK_OPENAI_EFFORT` (default `low`), `SIDETRACK_OPENAI_BASE_URL` for any OpenAI-compatible endpoint, `SIDETRACK_OPENAI_KEY_FILE` to read the key from elsewhere.
+
 ## What it doesn't do
 
-- **Edits.** Haiku's summaries don't carry reliable line numbers. Ask it where something lives, then grep and do a targeted read before editing.
+- **Edits.** The worker's summaries don't carry reliable line numbers. Ask it where something lives, then grep and do a targeted read before editing.
 - **Reasoning.** Debugging, architecture, and security-sensitive code stay with your main model. The skills say so.
 - **Small files.** Below the threshold, delegation costs more time than it saves.
 
