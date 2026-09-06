@@ -103,7 +103,7 @@ class InstallerTests(unittest.TestCase):
     def test_symlink_destination_rejected(self):
         outside = Path(tempfile.mkdtemp(prefix="sidetrack-outside-"))
         try:
-            (self.root / "agents").symlink_to(outside, target_is_directory=True)
+            (self.root / "skills").symlink_to(outside, target_is_directory=True)
         except OSError:
             self.skipTest("Symlink creation unavailable on this host")
         self.assertEqual(self.run_action("install"), 1)
@@ -118,12 +118,12 @@ class InstallerTests(unittest.TestCase):
         self.run_action("install")
         source = Path(tempfile.mkdtemp(prefix="sidetrack-source-"))
         for name in installer.ASSETS:
-            dest = source / name
+            dest = source / installer.SOURCES[name]
             dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_bytes((installer.SOURCE / name).read_bytes())
+            dest.write_bytes((installer.SOURCE / installer.SOURCES[name]).read_bytes())
         name = installer.ASSETS[0]
         original = (self.root / name).read_bytes()
-        (source / name).write_bytes(original + b"\n# Updated release\n")
+        (source / installer.SOURCES[name]).write_bytes(original + b"\n# Updated release\n")
         with patch.object(installer, "SOURCE", source):
             self.assertEqual(self.run_action("install"), 0)
         self.assertEqual((self.root / name).read_bytes(), original + b"\n# Updated release\n")
@@ -135,6 +135,40 @@ class InstallerTests(unittest.TestCase):
     def test_path_escape_is_rejected(self):
         with self.assertRaises(installer.InstallError):
             installer.target(self.root, "../outside.toml")
+
+    def legacy_install(self):
+        files = {name: b"legacy managed content" for name in installer.LEGACY_ASSETS}
+        for name, data in files.items():
+            path = self.root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+        block = installer.START + "\nOld native routing\n" + installer.END
+        (self.root / "AGENTS.md").write_bytes(("User preference\n\n" + block).encode("utf-8"))
+        path = self.root / installer.STATE
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"version": 1, "instructions": "AGENTS.md", "separator": "\n\n",
+                                   "block": block, "hashes": {n: installer.digest(v) for n, v in files.items()}}), encoding="utf-8")
+
+    def test_native_install_migrates_to_cli_and_archives_agents(self):
+        self.legacy_install()
+        self.assertEqual(self.run_action("install"), 0)
+        self.assertEqual(json.loads((self.root / installer.STATE).read_text())["version"], 2)
+        for name in installer.LEGACY_ASSETS[:2]:
+            self.assertFalse((self.root / name).exists())
+            self.assertTrue(list((self.root / "sidetrack/backups").glob(f"*/{name}")))
+        self.assertIn("User preference", (self.root / "AGENTS.md").read_text())
+        self.assertNotIn("Old native routing", (self.root / "AGENTS.md").read_text())
+        self.assertEqual(self.run_action("uninstall"), 0)
+        self.assertEqual((self.root / "AGENTS.md").read_text(), "User preference")
+
+    def test_migration_does_not_overwrite_unowned_cli_script(self):
+        self.legacy_install()
+        path = self.root / installer.ASSETS[0]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("My script")
+        self.assertEqual(self.run_action("install"), 1)
+        self.assertEqual(path.read_text(), "My script")
+        self.assertTrue((self.root / installer.LEGACY_ASSETS[0]).exists())
 
 
 if __name__ == "__main__":

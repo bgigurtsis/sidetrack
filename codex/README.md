@@ -1,44 +1,37 @@
 # Sidetrack for Codex
 
-Use **Luna** for substantial file reading and routine code generation through your
-existing Codex subscription sign-in. Your selected main model handles reasoning,
-integration, and review. Both modes use native subagents; no API key or Portal.
+Use **Luna through the Codex CLI** for substantial file reading and routine code
+generation. Your selected main model handles reasoning and review. Uses your
+existing ChatGPT/Codex subscription sign-in, without Portal, API keys, or subagents.
 
-## Install
+## Install or update
 
-Requires Python **3.11+**, a current local Codex client, and subscription access to
-`gpt-5.6-luna`. Sign in with ChatGPT; `codex login status` checks your sign-in method.
-
-From the Sidetrack checkout:
+Requires Python **3.11+**, a current Codex CLI, and subscription access to Luna.
+Run `codex login status` to check that you are signed in with ChatGPT.
 
 ```sh
-python3 codex/install.py install --dry-run
 python3 codex/install.py install
 ```
 
-Windows: use `py -3` instead of `python3`. Start a new Codex task afterward.
-
-The installer adds two Luna agents, a skill, and a marked global routing block to
-`~/.codex` (or `$CODEX_HOME`). It preserves your settings and sign-in. Use
-`--codex-home /path/to/home` for another destination.
+Run from this checkout. Windows: use `py -3` instead of `python3`. Start a new task
+after installation. Existing Sidetrack subagent installations are migrated: old
+agent files are archived and routing switches to the CLI.
 
 ## Use
 
-Ask Codex to work normally, or request a mode explicitly:
+Ask Codex to work normally, or invoke `$sidetrack-luna`. The installed skill calls
+the script before loading bulk source into your main conversation.
 
-> Use Sidetrack's bulk-reader to find which services retry failed requests.
+You can also run it directly from this checkout:
 
-> Use Sidetrack's code-writer to generate tests in tests/test_orders.py,
-> following tests/test_users.py, then review the changes.
+```sh
+python3 codex/cli.py --workspace /path/to/project read --question "Which services retry?" --paths src/services.py
+python3 codex/cli.py --workspace /path/to/project write --spec "Generate the specified tests" --reference tests/test_users.py --target tests/test_orders.py
+```
 
-The worker reads the source itself and returns a short summary. Your main model
-can then read specific sections or review the generated diff. You can also invoke
-`$sidetrack-luna` directly.
-
-Routing is instruction-based, without blocking hooks. Small tasks and difficult
-reasoning stay with the main model. Workers consume your subscription allowance;
-model availability and usage limits apply. Already using Luna? Automatic
-self-delegation is skipped.
+The script reads files, sends their contents to Luna, and returns a short answer.
+In write mode it saves code to a **new target file**. Your main model reviews and
+validates the result. Small tasks stay local; routing is advisory.
 
 ## Manage
 
@@ -47,9 +40,8 @@ python3 codex/install.py status
 python3 codex/install.py uninstall
 ```
 
-Removal preserves unrelated instructions and archives managed files in recoverable
-backups. Rerun the installer after pulling an update; it refuses to overwrite
-user-edited managed files.
+Settings and sign-in are preserved. Removal archives managed files in recoverable
+backups. Workers consume subscription allowance; model availability and limits apply.
 
-[Detailed setup and troubleshooting](setup.md) ·
-[Test results](TESTING.md) · [Live test](smoke-test.md)
+[Detailed setup](setup.md) Â· [CLI options](CLI.md) Â·
+[Comparison with subagents](CLI-COMPARISON.md) Â· [Tests](TESTING.md)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install Sidetrack's native Codex agents using only the Python standard library."""
+"""Install Sidetrack's subscription-backed Codex CLI worker and routing skill."""
 
 import argparse
 import hashlib
@@ -8,12 +8,16 @@ import os
 from pathlib import Path
 import shutil
 import sys
-import tomllib
 from datetime import datetime, timezone
 from uuid import uuid4
 
 SOURCE = Path(__file__).resolve().parent
 ASSETS = (
+    "skills/sidetrack-luna/scripts/sidetrack.py",
+    "skills/sidetrack-luna/SKILL.md",
+)
+SOURCES = {ASSETS[0]: "cli.py", ASSETS[1]: ASSETS[1]}
+LEGACY_ASSETS = (
     "agents/sidetrack_luna_bulk_reader.toml",
     "agents/sidetrack_luna_code_writer.toml",
     "skills/sidetrack-luna/SKILL.md",
@@ -24,16 +28,15 @@ END = "<!-- sidetrack:codex:end -->"
 BLOCK = f"""{START}
 ## Sidetrack: Luna delegation
 
-Use the `sidetrack-luna` skill to proactively delegate substantial file exploration
-to `sidetrack_luna_bulk_reader` and predictable generation from reference files to
-`sidetrack_luna_code_writer`. This is a standing request for bounded native Luna
-subagents, regardless of the main model. Keep the selected main model for planning,
-reasoning, integration, and review. Delegate before reading bulk source into the
-main conversation, pass paths and a focused task, and use fresh worker contexts.
-Prefer direct targeted reads for small tasks. Skip recursive delegation and skip
-automatic routing when the main model is Luna. Current user instructions take
-precedence. If Luna is unavailable, report that and proceed directly; never switch
-to an API-key service or another worker model silently.
+Use the `sidetrack-luna` skill and its installed CLI script for substantial file
+reading and predictable code generation. Invoke its `read` or `write` command
+before loading bulk source into the main conversation. This is a standing request
+for one-shot Luna CLI calls, not native subagents, regardless of the main model.
+Keep the selected main model for reasoning, integration, and review. Prefer direct
+targeted reads for small tasks. Skip recursive invocation and automatic routing
+when the main model is Luna. Follow the current user's instructions. If Luna or
+the CLI is unavailable, report that and proceed directly; never silently switch
+to subagents, another worker model, or API-key authentication.
 {END}"""
 
 
@@ -65,7 +68,8 @@ def read_state(root):
     if not path.exists():
         return None
     state = json.loads(path.read_text(encoding="utf-8"))
-    if (state.get("version") != 1 or set(state.get("hashes", {})) != set(ASSETS)
+    expected = {1: set(LEGACY_ASSETS), 2: set(ASSETS)}.get(state.get("version"))
+    if (expected is None or set(state.get("hashes", {})) != expected
             or state.get("instructions") not in ("AGENTS.md", "AGENTS.override.md")
             or not isinstance(state.get("block"), str)
             or not state["block"].startswith(START)
@@ -100,7 +104,7 @@ def backup_path(root):
     return root / relative
 
 
-def save(root, changes):
+def save(root, changes, retired=()):
     """Back up every replaced file before the first write. Never delete backups."""
     backup = backup_path(root)
     for relative in changes:
@@ -110,9 +114,19 @@ def save(root, changes):
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(path, dest)
     for relative, content in changes.items():
+        if relative == STATE:
+            continue
         path = target(root, relative)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(content)
+    for relative in retired:
+        dest = backup / relative
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(target(root, relative)), str(dest))
+    if STATE in changes:
+        path = target(root, STATE)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(changes[STATE])
     if backup.exists():
         print(f"Backups: {backup}")
 
@@ -121,11 +135,8 @@ def install(root, dry_run=False):
     state = read_state(root)
     if state:
         check_owned(root, state)
-    assets = {name: (SOURCE / name).read_bytes() for name in ASSETS}
-    for name in ASSETS[:2]:
-        agent = tomllib.loads(assets[name].decode("utf-8"))
-        if agent.get("model") != "gpt-5.6-luna" or not agent.get("developer_instructions"):
-            raise InstallError(f"Invalid Luna agent: {name}")
+    assets = {name: (SOURCE / SOURCES[name]).read_bytes() for name in ASSETS}
+    compile(assets[ASSETS[0]], ASSETS[0], "exec")
     override = target(root, "AGENTS.override.md")
     instructions = (state["instructions"] if state else
                     "AGENTS.override.md" if override.exists() and override.stat().st_size else "AGENTS.md")
@@ -142,9 +153,10 @@ def install(root, dry_run=False):
         updated = text + separator + BLOCK
     for name, content in assets.items():
         dest = target(root, name)
-        if not state and dest.exists():
+        if dest.exists() and (not state or name not in state["hashes"]):
             raise InstallError(f"Refusing to overwrite an unowned file: {dest}")
-    record = {"version": 1, "instructions": instructions, "separator": separator,
+    retired = tuple(name for name in state["hashes"] if name not in ASSETS) if state else ()
+    record = {"version": 2, "instructions": instructions, "separator": separator,
               "block": BLOCK, "hashes": {name: digest(content) for name, content in assets.items()}}
     proposed = {**assets, instructions: updated.encode("utf-8"),
                 STATE: (json.dumps(record, indent=2) + "\n").encode("utf-8")}
@@ -155,8 +167,10 @@ def install(root, dry_run=False):
         return
     for name in changes:
         print(f"{'Would write' if dry_run else 'Install'}: {root / name}")
+    for name in retired:
+        print(f"{'Would archive' if dry_run else 'Archive legacy agent'}: {root / name}")
     if not dry_run:
-        save(root, changes)
+        save(root, changes, retired)
         print("Installed. Start a new Codex task. Your main model, config, and sign-in are unchanged.")
 
 
@@ -173,7 +187,7 @@ def uninstall(root, dry_run=False):
     # Remove only our block and the separator we appended; preserve later user text.
     chunk = state.get("separator", "") + state["block"]
     updated = text.replace(chunk if chunk in text else state["block"], "", 1)
-    for name in (*ASSETS, STATE):
+    for name in (*state["hashes"], STATE):
         print(f"{'Would archive' if dry_run else 'Archive'}: {root / name}")
     if dry_run:
         return
@@ -182,7 +196,7 @@ def uninstall(root, dry_run=False):
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(path, dest)
     path.write_bytes(updated.encode("utf-8"))
-    for name in (*ASSETS, STATE):
+    for name in (*state["hashes"], STATE):
         archived = backup / name
         archived.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(target(root, name)), str(archived))
@@ -199,7 +213,8 @@ def status(root, dry_run=False):
     override = target(root, "AGENTS.override.md")
     if state["instructions"] == "AGENTS.md" and override.exists() and override.stat().st_size:
         raise InstallError("Routing is shadowed by AGENTS.override.md; uninstall and reinstall.")
-    print(f"Installed: two Luna agents and sidetrack-luna skill under {root}")
+    method = "Luna CLI worker" if state["version"] == 2 else "legacy native agents; run install to migrate"
+    print(f"Installed: {method} and sidetrack-luna skill under {root}")
     print(f"Routing: {state['instructions']} (advisory; no blocking hooks)")
     print("Account/model availability is not checked. Run codex login status and a live test.")
 
@@ -212,7 +227,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         globals()[args.action](args.codex_home.expanduser().resolve(), args.dry_run)
-    except (InstallError, OSError, ValueError) as exc:
+    except (InstallError, OSError, ValueError, SyntaxError) as exc:
         print(f"Sidetrack: {exc}", file=sys.stderr)
         return 1
     return 0

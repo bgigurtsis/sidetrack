@@ -7,7 +7,7 @@ sign-in, with no Portal or API key.
 | Client | Worker | Routing |
 | --- | --- | --- |
 | Claude Code | Haiku, or Luna with an OpenAI key (opt-in) | Hooks redirect large reads; skills handle generation |
-| Codex | Luna | Global instructions request native subagents |
+| Codex | Luna | Global instructions call the Codex CLI |
 
 ## Install
 

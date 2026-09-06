@@ -1,29 +1,55 @@
 ---
 name: sidetrack-luna
-description: Delegate substantial file exploration and predictable code generation to Luna workers while retaining the selected main model for reasoning and review. Use before bulk reads or routine generation from reference files.
+description: Use Luna through the Codex CLI for substantial file reading and predictable code generation. Use before bulk reads or routine generation from reference files, while retaining the selected main model for reasoning and review.
 ---
 
-# Luna delegation
+# Sidetrack Luna CLI
 
-The user requests automatic delegation in both modes below regardless of the main model. Keep the selected main model unchanged. Skip automatic delegation if already a worker or if the main model is gpt-5.6-luna. Do not recursively delegate.
+Use the installed script at `scripts/sidetrack.py` relative to this skill directory.
+Choose an available Python 3.11+ interpreter (`python3`, `python`, or `py -3`).
+Use its absolute script path and pass the project root with `--workspace`.
+This is a normal shell tool call, not a native-subagent workflow.
 
-## Routing and context
+## Read
 
-- Use native subagents. Select the named custom agent when the tool supports it. Otherwise spawn with model `gpt-5.6-luna`, reasoning effort `medium`, and include the relevant mode instructions below in the task.
-- Start with fresh context (`fork_turns="none"` when supported). Supply the question/specification, absolute workspace and file paths, relevant constraints, and permitted output paths. Have the worker read source files itself; do not copy the main conversation or bulk file contents into the task.
-- Delegate only a concrete bounded task. While it runs, do useful independent planning or checks without duplicating its reads or editing its assigned files. If the available subagent tool requires independent concurrent work and none exists, handle the task directly.
-- Prefer direct search and targeted reads when already sufficient. A full read exceeding roughly 350 lines, several substantial files, or predictable generation exceeding roughly 100 lines is a useful routing signal, not a hard cutoff.
-- Keep debugging conclusions, architecture, security decisions, ambiguous implementation, and final review with the main model. Workers can gather evidence for these tasks.
-- If Luna or subagents are unavailable, state the limitation briefly and continue directly. Do not add API credentials, external services, or substitute another worker model silently.
+```sh
+python3 /path/to/skill/scripts/sidetrack.py --workspace /path/to/project read --question "Which services retry failed requests?" --paths src/services.py src/config.py
+```
 
-## Bulk-reader mode: sidetrack_luna_bulk_reader
+Pass a focused question and relevant file paths before reading bulk source into
+the main conversation. The script reads and numbers the source itself, sends it
+to Luna, and returns only the final answer. Use direct searches to locate files
+first when needed. Read specific sections afterward before edits or important
+conclusions; summaries may omit details or contain incorrect line references.
 
-Give a specific question and paths/search scope. Worker instructions: read-only; search and read source directly; return concise bullets with exact paths, symbols, verified line references, and just enough evidence to support the answer. Distinguish facts from inference and report uncertainty or missing coverage. Aim for at most 800 words unless explicitly necessary; never dump entire files. Do not edit files or spawn agents.
+## Write
 
-The main model reads relevant sections directly before edits or consequential conclusions. A summary is a navigation aid, not proof of completeness.
+```sh
+python3 /path/to/skill/scripts/sidetrack.py --workspace /path/to/project write --spec "Generate tests for these specified success cases" --reference tests/test_users.py --context src/orders.py --target tests/test_orders.py
+```
 
-## Code-writer mode: sidetrack_luna_code_writer
+Provide a concrete specification, a reference file, and a new target path. Its
+parent directory must exist. Luna returns code to the script, which writes it and
+returns a short summary. Review the result and run appropriate checks. For an
+existing file, generate to a new staging file and review/apply the intended edits;
+do not overwrite user work or treat generated output as already verified.
 
-Supply a concrete specification, at least one reference file, exact owned output paths, and relevant validation commands. Worker instructions: read references directly; match existing patterns; write code directly to assigned workspace paths; preserve unrelated work; do not edit outside the assignment, delete files, or spawn agents. If a missing requirement materially changes behavior, report it instead of inventing requirements. Run focused applicable checks and return changed paths, a brief behavior summary, check results, and unresolved issues. Do not paste generated files into the response.
+## Routing
 
-The main model reviews the diff and validates behavior proportionate to the change. Do not let multiple workers write the same files concurrently. Delegation does not authorize deployment, messaging, or any external mutation beyond the user's task.
+- Keep the selected main model unchanged. Use CLI calls for substantial reads or
+  predictable generation; roughly 350 source lines or 100 generated lines are
+  useful signals, not hard thresholds. Small tasks stay local.
+- Keep architecture, difficult debugging, security decisions, and final review
+  with the main model. Do not call native subagents for either Sidetrack mode.
+- Skip recursive invocation and automatic routing when already using Luna. No
+  independent parallel task is required for a CLI call.
+- Inputs and outputs must stay in the workspace. Split inputs exceeding 500 KB.
+  The CLI requires ChatGPT sign-in and Luna availability. If unavailable, report
+  the limitation and work directly; do not switch worker models or authentication.
+- Preserve normal sandbox and approval controls. If a CLI subprocess is blocked,
+  request the normal narrowly scoped execution approval rather than bypassing
+  permissions or switching to an API. No deployment or messaging is authorized
+  by delegation alone.
+- Stdout is the result; stderr contains elapsed time and Codex-reported usage.
+  Use `--timeout 180` or `--report metrics.json` before the mode if needed. Reports
+  require a new path. Never equate token counts with subscription credits.
