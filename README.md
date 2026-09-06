@@ -82,7 +82,7 @@ Each call is a round trip through the Claude Code CLI. Reads take around 10 seco
 python -m pytest tests
 ```
 
-The test file was itself generated with `sidetrack write` and then adopted with one path fix.
+The first three tests were generated with `sidetrack write` from the script itself, then tidied by hand.
 
 ## Manual install
 
