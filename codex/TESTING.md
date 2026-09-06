@@ -10,9 +10,9 @@ not permitted on the local test host. The suite covers dry runs, existing config
 and auth preservation, idempotent installs, updates with backups, conflicting or
 modified files, instruction override precedence, path containment, and removal.
 
-The GitHub Actions workflow runs this suite on Windows, Linux, and macOS with
-Python 3.11 and 3.13. Refer to Actions for current CI results; this local record
-does not assert results for operating systems that were not tested locally.
+All six [GitHub Actions jobs](https://github.com/bgigurtsis/sidetrack/actions/runs/34045578847)
+passed on Windows, Linux, and macOS with Python 3.11 and 3.13. These are installer
+tests; the live model test below was run on Windows.
 
 ## Live subscription test
 
