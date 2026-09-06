@@ -35,8 +35,12 @@ On Windows, use `py -3` instead of `python3`. Start a new task after installing.
 3. Your main model reviews the findings or changes and checks the result.
 
 ```text
-Main model -- question/spec + paths --> Haiku or Luna
-Main model <-- findings/change summary -- worker
++--------------+   (1) question or spec + file paths   +----------------+
+|              | ------------------------------------> |                |
+|  Main model  |                                       |     Worker     |
+|   (yours)    | <------------------------------------ |  Haiku / Luna  |
+|              |   (2) short findings, or a file       |                |
++--------------+       written straight to disk        +----------------+
 ```
 
 Small tasks stay with the main model. Debugging, architecture, and final review
