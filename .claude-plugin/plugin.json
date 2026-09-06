@@ -2,11 +2,17 @@
   "name": "sidetrack",
   "description": "Send big file reads and boilerplate generation to Claude Haiku so your main model only sees the answer. Works with a Claude Code subscription alone.",
   "version": "0.1.0",
-  "author": { "name": "Billy Gigurtsis" },
+  "author": {
+    "name": "Billy Gigurtsis"
+  },
   "homepage": "https://github.com/bgigurtsis/sidetrack",
   "repository": "https://github.com/bgigurtsis/sidetrack",
   "license": "MIT",
-  "keywords": ["tokens", "cost", "haiku", "delegation", "hooks"],
-  "hooks": "./hooks/hooks.json",
-  "skills": "./skills/"
+  "keywords": [
+    "tokens",
+    "cost",
+    "haiku",
+    "delegation",
+    "hooks"
+  ]
 }
