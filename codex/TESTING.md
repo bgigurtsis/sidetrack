@@ -32,7 +32,7 @@ does not assert results for operating systems that were not tested locally.
   global instruction file was restored byte-for-byte. Removed managed files were
   retained in recoverable backups.
 
-Codex rewrote its config during the live session, so the whole-session config
+The config changed during the live session, so the whole-session config
 checksum was not unchanged. The main-model setting remained unchanged; the
 installer's config/auth preservation is covered independently by the offline
 tests. The installer never writes either file.
