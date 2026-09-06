@@ -18,19 +18,6 @@ claude plugin marketplace add bgigurtsis/sidetrack
 claude plugin install sidetrack@sidetrack
 ```
 
-**Claude Code with Luna instead of Haiku** (optional, needs an OpenAI API key). After installing the plugin:
-
-1. Save your key on one line in `~/.claude/sidetrack/openai_key`, or export `OPENAI_API_KEY`.
-2. Add this to `~/.claude/settings.json` (merge into an existing `env` block if you have one):
-
-```json
-{ "env": { "SIDETRACK_BACKEND": "openai" } }
-```
-
-3. Start a new Claude Code session.
-
-Luna calls go straight to the OpenAI API, so they take a couple of seconds and are billed to your OpenAI account rather than your Claude plan. To pick a different model or endpoint, set `SIDETRACK_OPENAI_MODEL` or `SIDETRACK_OPENAI_BASE_URL` in the same `env` block. Full details in [the Claude Code guide](docs/claude-code.md#using-luna-with-an-openai-api-key).
-
 **Codex** - requires Python 3.11+, a current Codex client, and Luna access:
 
 ```sh
@@ -59,6 +46,31 @@ On Windows, use `py -3` instead of `python3`. Start a new task after installing.
 Small tasks stay with the main model. Debugging, architecture, and final review
 stay there too. Codex routing is advisory, so it may not delegate every eligible
 task. Workers consume subscription allowance; savings vary and are not guaranteed.
+
+## Using Luna as the worker in Claude Code
+
+By default the Claude Code plugin uses Haiku, called through your Claude subscription. You can switch the worker to GPT-5.6 Luna instead if you have an OpenAI API key.
+
+Why you might want to:
+
+- **Cheaper.** Luna's per-token price is roughly half of Haiku's, and the worker handles the bulk of the tokens.
+- **Faster.** Calls go straight to the OpenAI API and return in a couple of seconds. The Haiku path goes through the Claude Code CLI and takes 7 to 10 seconds.
+- **Keeps your Claude plan for your main model.** Worker usage bills to your OpenAI account, so heavy delegation does not eat into your Claude rate limits.
+
+Why you might not: you need an OpenAI key, and Luna does not know Claude Code's conventions, so the reference-file requirement matters more for generated code.
+
+Setup, after installing the plugin:
+
+1. Save your key on one line in `~/.claude/sidetrack/openai_key`, or export `OPENAI_API_KEY`.
+2. Add this to `~/.claude/settings.json` (merge into an existing `env` block if you have one):
+
+```json
+{ "env": { "SIDETRACK_BACKEND": "openai" } }
+```
+
+3. Start a new Claude Code session.
+
+To use a different model or an OpenAI-compatible endpoint, set `SIDETRACK_OPENAI_MODEL` or `SIDETRACK_OPENAI_BASE_URL` in the same `env` block. Full details in [the Claude Code guide](docs/claude-code.md#using-luna-with-an-openai-api-key).
 
 ## Guides
 
