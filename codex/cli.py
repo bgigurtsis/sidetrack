@@ -115,7 +115,14 @@ def run(args):
     binary = executable(args.codex_bin)
     login = subprocess.run([binary, "login", "status"], capture_output=True, text=True,
                            encoding="utf-8", timeout=20)
-    if login.returncode or "logged in using chatgpt" not in (login.stdout + login.stderr).lower():
+    if login.returncode:
+        raise ValueError(
+            "Cannot verify Codex sign-in in this execution environment. If called from a "
+            "sandboxed agent, retry this exact script command through the normal narrowly "
+            "scoped execution approval before concluding that sign-in is missing. Do not "
+            "copy credentials or bypass permissions. Outside the sandbox, check codex login status. "
+            + (login.stdout + login.stderr)[-1000:].strip())
+    if "logged in using chatgpt" not in (login.stdout + login.stderr).lower():
         raise ValueError("Requires existing ChatGPT sign-in. Run codex login; API-key sessions are not used.")
     # Arguments are an argv list; source/specification go through stdin, never a shell.
     result = subprocess.run(command(binary, root), input=prompt, capture_output=True,

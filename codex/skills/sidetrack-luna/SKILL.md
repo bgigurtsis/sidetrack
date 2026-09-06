@@ -48,7 +48,10 @@ do not overwrite user work or treat generated output as already verified.
   the limitation and work directly; do not switch worker models or authentication.
 - Preserve normal sandbox and approval controls. If a CLI subprocess is blocked,
   request the normal narrowly scoped execution approval rather than bypassing
-  permissions or switching to an API. No deployment or messaging is authorized
+  permissions or switching to an API. If sign-in cannot be verified inside the
+  sandbox, retry the exact script command through that approval flow before
+  declaring Luna unavailable; do not ask the user to log in again based only on
+  a sandbox failure. Never copy credentials into the workspace. No deployment or messaging is authorized
   by delegation alone.
 - Stdout is the result; stderr contains elapsed time and Codex-reported usage.
   Use `--timeout 180` or `--report metrics.json` before the mode if needed. Reports

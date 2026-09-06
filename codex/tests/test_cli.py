@@ -57,6 +57,14 @@ class CLITests(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertEqual(runner.call_count, 0)
 
+    def test_inaccessible_login_requests_normal_approval(self):
+        failed = subprocess.CompletedProcess([], 1, "", "Access is denied")
+        with patch.object(cli, "executable", return_value="codex"), patch.object(cli.subprocess, "run", return_value=failed):
+            args = type("Args", (), dict(workspace=self.root, mode="read", report=None,
+                        paths=["ref.py"], question="What?", codex_bin=None))()
+            with self.assertRaisesRegex(ValueError, "normal narrowly scoped execution approval"):
+                cli.run(args)
+
     def test_incomplete_response_never_writes(self):
         rc, _ = self.invoke(["write", "--spec", "triple", "--reference", "ref.py", "--target", "out.py"],
                             [self.login(), subprocess.CompletedProcess([], 0, events("partial", False), "")])
