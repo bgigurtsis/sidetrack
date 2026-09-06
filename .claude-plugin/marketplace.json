@@ -1,16 +1,18 @@
 {
   "name": "sidetrack",
-  "owner": { "name": "Billy Gigurtsis" },
+  "owner": {
+    "name": "Billy Gigurtsis"
+  },
   "metadata": {
     "description": "sidetrack: route grunt work from Claude Code to Haiku",
-    "version": "0.1.0"
+    "version": "0.1.1"
   },
   "plugins": [
     {
       "name": "sidetrack",
       "source": "./",
       "description": "Send big file reads and boilerplate generation to Claude Haiku so your main model only sees the answer.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "productivity"
     }
   ]
