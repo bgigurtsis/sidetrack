@@ -7,7 +7,7 @@ sign-in, with no Portal or API key.
 | Client | Worker | Routing |
 | --- | --- | --- |
 | Claude Code | Haiku, or Luna with an OpenAI key (opt-in) | Hooks redirect large reads; skills handle generation |
-| Codex | Luna | A standing note in `AGENTS.md` asks the model to hand big reads and generation to Luna subagents. Advisory, not enforced |
+| Codex | Luna through the Codex CLI | A hook blocks common large reads; a skill handles generation |
 
 ## Install
 
@@ -26,7 +26,8 @@ cd sidetrack
 python3 codex/install.py install
 ```
 
-On Windows, use `py -3` instead of `python3`. Start a new task after installing.
+On Windows, use `py -3` instead of `python3`. In Codex, open `/hooks` and review/trust
+the Sidetrack entry, then start a new task. See [Codex setup](codex/setup.md).
 
 ## How it works
 
@@ -48,10 +49,11 @@ stay there too.
 
 The two clients enforce this differently. In Claude Code a hook runs before every
 file read and refuses reads over 350 lines, so the model has to delegate or read a
-smaller slice. Codex has no hooks, so the installer adds a standing note to
-`AGENTS.md` asking the model to delegate. It usually does, but nothing stops it
-reading a big file directly. Workers consume subscription allowance; savings vary
-and are not guaranteed.
+smaller slice. Codex uses a trusted `PreToolUse` hook to block recognizable whole-file
+reads over 350 lines and direct the model to the Luna CLI. Searches and short
+excerpts remain allowed; arbitrary shell programs are outside its coverage.
+Generation uses skill instructions. Workers consume subscription allowance;
+savings vary and are not guaranteed.
 
 ## Using Luna as the worker in Claude Code
 

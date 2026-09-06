@@ -12,11 +12,15 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 SOURCE = Path(__file__).resolve().parent
+sys.path.insert(0, str(SOURCE))
+import hook_config
+
 ASSETS = (
     "skills/sidetrack-luna/scripts/sidetrack.py",
     "skills/sidetrack-luna/SKILL.md",
+    hook_config.HOOK_PATH,
 )
-SOURCES = {ASSETS[0]: "cli.py", ASSETS[1]: ASSETS[1]}
+SOURCES = {ASSETS[0]: "cli.py", ASSETS[1]: ASSETS[1], ASSETS[2]: "read_hook.py"}
 LEGACY_ASSETS = (
     "agents/sidetrack_luna_bulk_reader.toml",
     "agents/sidetrack_luna_code_writer.toml",
@@ -68,7 +72,7 @@ def read_state(root):
     if not path.exists():
         return None
     state = json.loads(path.read_text(encoding="utf-8"))
-    expected = {1: set(LEGACY_ASSETS), 2: set(ASSETS)}.get(state.get("version"))
+    expected = {1: set(LEGACY_ASSETS), 2: set(ASSETS[:2]), 3: set(ASSETS)}.get(state.get("version"))
     if (expected is None or set(state.get("hashes", {})) != expected
             or state.get("instructions") not in ("AGENTS.md", "AGENTS.override.md")
             or not isinstance(state.get("block"), str)
@@ -137,6 +141,11 @@ def install(root, dry_run=False):
         check_owned(root, state)
     assets = {name: (SOURCE / SOURCES[name]).read_bytes() for name in ASSETS}
     compile(assets[ASSETS[0]], ASSETS[0], "exec")
+    compile(assets[ASSETS[2]], ASSETS[2], "exec")
+    hook_path = target(root, "hooks.json")
+    hooks_before = (state["hooks_before"] if state and "hooks_before" in state else
+                    hook_path.read_bytes().decode("utf-8") if hook_path.exists() else None)
+    hook_data, hook_entry = hook_config.prepare(root, state, assets[ASSETS[2]])
     override = target(root, "AGENTS.override.md")
     instructions = (state["instructions"] if state else
                     "AGENTS.override.md" if override.exists() and override.stat().st_size else "AGENTS.md")
@@ -156,9 +165,10 @@ def install(root, dry_run=False):
         if dest.exists() and (not state or name not in state["hashes"]):
             raise InstallError(f"Refusing to overwrite an unowned file: {dest}")
     retired = tuple(name for name in state["hashes"] if name not in ASSETS) if state else ()
-    record = {"version": 2, "instructions": instructions, "separator": separator,
+    record = {"version": 3, "instructions": instructions, "separator": separator,
+              "hook_entry": hook_entry, "hooks_before": hooks_before,
               "block": BLOCK, "hashes": {name: digest(content) for name, content in assets.items()}}
-    proposed = {**assets, instructions: updated.encode("utf-8"),
+    proposed = {**assets, instructions: updated.encode("utf-8"), "hooks.json": hook_data,
                 STATE: (json.dumps(record, indent=2) + "\n").encode("utf-8")}
     changes = {name: data for name, data in proposed.items()
                if not target(root, name).exists() or target(root, name).read_bytes() != data}
@@ -171,7 +181,8 @@ def install(root, dry_run=False):
         print(f"{'Would archive' if dry_run else 'Archive legacy agent'}: {root / name}")
     if not dry_run:
         save(root, changes, retired)
-        print("Installed. Start a new Codex task. Your main model, config, and sign-in are unchanged.")
+        print("Installed. Open Codex /hooks and review/trust the Sidetrack hook, then start a new task.")
+        print("The read guard is inactive until trusted. Main model, config, and sign-in are unchanged.")
 
 
 def uninstall(root, dry_run=False):
@@ -180,6 +191,10 @@ def uninstall(root, dry_run=False):
         print("Sidetrack is not installed.")
         return
     check_owned(root, state)
+    hook_data = None
+    if state.get("hook_entry"):
+        target(root, "hooks.json")
+        hook_data, _ = hook_config.prepare(root, state)
     relative = state["instructions"]
     path = target(root, relative)
     text = route_text(path)
@@ -192,6 +207,11 @@ def uninstall(root, dry_run=False):
     if dry_run:
         return
     backup = backup_path(root)
+    if hook_data is not None:
+        hook_backup = backup / "hooks.json"
+        hook_backup.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(root / "hooks.json", hook_backup)
+        (root / "hooks.json").write_bytes(hook_data)
     dest = backup / relative
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(path, dest)
@@ -213,9 +233,14 @@ def status(root, dry_run=False):
     override = target(root, "AGENTS.override.md")
     if state["instructions"] == "AGENTS.md" and override.exists() and override.stat().st_size:
         raise InstallError("Routing is shadowed by AGENTS.override.md; uninstall and reinstall.")
-    method = "Luna CLI worker" if state["version"] == 2 else "legacy native agents; run install to migrate"
+    if state.get("hook_entry"):
+        target(root, "hooks.json")
+        hook_config.prepare(root, state)
+    method = "Luna CLI worker" if state["version"] >= 2 else "legacy native agents; run install to migrate"
     print(f"Installed: {method} and sidetrack-luna skill under {root}")
-    print(f"Routing: {state['instructions']} (advisory; no blocking hooks)")
+    print(f"Routing guidance: {state['instructions']}")
+    print("Read guard: installed; verify enabled/trusted in /hooks." if state.get("hook_entry")
+          else "Read guard: absent; run install to upgrade.")
     print("Account/model availability is not checked. Run codex login status and a live test.")
 
 

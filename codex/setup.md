@@ -16,13 +16,39 @@ Installed files:
 ```text
 skills/sidetrack-luna/SKILL.md
 skills/sidetrack-luna/scripts/sidetrack.py
+skills/sidetrack-luna/scripts/read_hook.py
+hooks.json (one merged entry)
 sidetrack/install.json
 ```
 
 One marked routing block is appended to global `AGENTS.md`, or an existing
 nonempty `AGENTS.override.md`. Existing instructions, config.toml, and sign-in
 are preserved. The main model is never changed. Both modes call the CLI with Luna;
-Sidetrack no longer installs native agents. No blocking hooks are installed.
+Sidetrack no longer installs native agents.
+
+## Activate the read hook
+
+Open the Codex CLI, enter `/hooks`, and review/trust the entry labelled
+`Sidetrack: redirect large whole-file reads`. Start a new task afterward. Codex
+does not execute untrusted hooks. Review again when an update changes the hook.
+The installer never grants trust or disables sandbox controls.
+
+Before a supported read runs, the hook checks literal file paths. If a whole file
+exceeds 350 lines, it denies that call and directs the main model to the Luna CLI.
+Small reads, searches, and bounded excerpts pass through.
+
+```text
+Main model -- large read --> Hook -- deny + guidance --> Main model
+Main model -- question + paths --> Luna CLI -- findings --> Main model
+```
+
+This covers common `cat`/`Get-Content` commands, literal Python full reads, and
+file-read tools. It is a routing guard, not a universal shell parser: dynamic paths,
+arbitrary programs, hosted tools, and unsupported command forms are not covered.
+Code writing remains skill-directed because a pre-tool hook runs after the model
+has already generated its tool arguments. Luna sessions skip the read guard.
+`SIDETRACK_CODEX_MIN_LINES` changes the threshold; `SIDETRACK_CODEX_DISABLE=1`
+disables the guard. Hooks must be enabled by the client and any managed policy.
 
 ## Updates and migration
 
@@ -37,7 +63,9 @@ updating or removing. Custom, manually created agents outside Sidetrack's instal
 record are not removed automatically.
 
 Run `python3 codex/install.py uninstall` to remove active Sidetrack files and its
-routing block. Backups remain recoverable. `--dry-run` previews install or removal.
+routing block and recorded hook entry. Other hooks are retained; an originally
+absent hooks file can remain as valid empty JSON. Backups remain recoverable.
+`--dry-run` previews install or removal.
 Empty directories can remain. Avoid simultaneous installs or edits to managed
 files. On filesystem errors, inspect the error and backups before retrying.
 
@@ -60,5 +88,6 @@ files. On filesystem errors, inspect the error and backups before retrying.
 - [Authentication](https://learn.chatgpt.com/docs/auth)
 - [Non-interactive Codex](https://learn.chatgpt.com/docs/non-interactive-mode)
 - [Global instructions](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
+- [Hooks and trust](https://learn.chatgpt.com/docs/hooks)
 
 The Claude Code implementation uses its own configuration and is unaffected.

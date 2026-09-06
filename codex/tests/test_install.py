@@ -152,7 +152,7 @@ class InstallerTests(unittest.TestCase):
     def test_native_install_migrates_to_cli_and_archives_agents(self):
         self.legacy_install()
         self.assertEqual(self.run_action("install"), 0)
-        self.assertEqual(json.loads((self.root / installer.STATE).read_text())["version"], 2)
+        self.assertEqual(json.loads((self.root / installer.STATE).read_text())["version"], 3)
         for name in installer.LEGACY_ASSETS[:2]:
             self.assertFalse((self.root / name).exists())
             self.assertTrue(list((self.root / "sidetrack/backups").glob(f"*/{name}")))

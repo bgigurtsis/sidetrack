@@ -14,7 +14,8 @@ python3 codex/install.py install
 ```
 
 Run from this checkout. Windows: use `py -3` instead of `python3`. Start a new task
-after installation. Existing Sidetrack subagent installations are migrated: old
+after reviewing and trusting the Sidetrack entry in Codex `/hooks`. The read guard
+does not run until trusted. Existing Sidetrack subagent installations are migrated: old
 agent files are archived and routing switches to the CLI.
 
 ## Use
@@ -31,7 +32,9 @@ python3 codex/cli.py --workspace /path/to/project write --spec "Generate the spe
 
 The script reads files, sends their contents to Luna, and returns a short answer.
 In write mode it saves code to a **new target file**. Your main model reviews and
-validates the result. Small tasks stay local; routing is advisory.
+validates the result. A `PreToolUse` hook blocks recognizable whole-file reads over
+350 lines and tells the main model to use the CLI. Searches and short excerpts are
+allowed. Code-generation routing still uses skill instructions.
 
 ## Manage
 

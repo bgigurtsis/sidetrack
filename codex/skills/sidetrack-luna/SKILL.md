@@ -37,8 +37,9 @@ do not overwrite user work or treat generated output as already verified.
 ## Routing
 
 - Keep the selected main model unchanged. Use CLI calls for substantial reads or
-  predictable generation; roughly 350 source lines or 100 generated lines are
-  useful signals, not hard thresholds. Small tasks stay local.
+  predictable generation. A trusted PreToolUse hook blocks supported whole-file
+  reads over 350 lines. If denied, use this CLI with a focused question; do not
+  evade the guard with another reader. Small tasks and targeted excerpts stay local.
 - Keep architecture, difficult debugging, security decisions, and final review
   with the main model. Do not call native subagents for either Sidetrack mode.
 - Skip recursive invocation and automatic routing when already using Luna. No

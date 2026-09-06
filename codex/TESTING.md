@@ -11,10 +11,12 @@ python3 -m unittest discover -s codex/tests -v
 
 The suite covers subscription-authentication checks, source paths and input limits,
 stdin-only prompt transport, target overwrite protection, incomplete/failed replies,
-timeouts, metrics, installation, migration from native agents, backups, and removal.
+timeouts, metrics, installation, migration from native agents and CLI-only installs,
+hook deny/allow decisions, stdin protocol, preservation of unrelated hooks, backups,
+and removal.
 Tests do not call models. They retain temporary test directories for inspection.
 
-On the local Windows host, 25 tests ran: 24 passed and the symlink test was skipped
+On the local Windows host, 36 tests ran: 35 passed and the symlink test was skipped
 because the host does not permit symlink creation. GitHub Actions runs the suite
 on Windows, macOS, and Linux with Python 3.11 and 3.13; see the latest Actions result.
 
