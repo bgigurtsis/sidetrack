@@ -7,7 +7,7 @@ sign-in, with no Portal or API key.
 | Client | Worker | Routing |
 | --- | --- | --- |
 | Claude Code | Haiku, or Luna with an OpenAI key (opt-in) | Hooks redirect large reads; skills handle generation |
-| Codex | Luna | Global instructions call the Codex CLI |
+| Codex | Luna | A standing note in `AGENTS.md` asks the model to hand big reads and generation to Luna subagents. Advisory, not enforced |
 
 ## Install
 
@@ -44,8 +44,14 @@ On Windows, use `py -3` instead of `python3`. Start a new task after installing.
 ```
 
 Small tasks stay with the main model. Debugging, architecture, and final review
-stay there too. Codex routing is advisory, so it may not delegate every eligible
-task. Workers consume subscription allowance; savings vary and are not guaranteed.
+stay there too.
+
+The two clients enforce this differently. In Claude Code a hook runs before every
+file read and refuses reads over 350 lines, so the model has to delegate or read a
+smaller slice. Codex has no hooks, so the installer adds a standing note to
+`AGENTS.md` asking the model to delegate. It usually does, but nothing stops it
+reading a big file directly. Workers consume subscription allowance; savings vary
+and are not guaranteed.
 
 ## Using Luna as the worker in Claude Code
 
