@@ -51,5 +51,5 @@ Removal preserves unrelated instructions and archives managed files in recoverab
 backups. Rerun the installer after pulling an update; it refuses to overwrite
 user-edited managed files.
 
-[Detailed setup and troubleshooting](setup.md) ·
-[Test results](TESTING.md) · [Live test](smoke-test.md)
+[Detailed setup and troubleshooting](setup.md) -
+[Test results](TESTING.md) - [Live test](smoke-test.md)
