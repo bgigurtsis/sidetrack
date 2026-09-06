@@ -18,6 +18,19 @@ claude plugin marketplace add bgigurtsis/sidetrack
 claude plugin install sidetrack@sidetrack
 ```
 
+**Claude Code with Luna instead of Haiku** (optional, needs an OpenAI API key). After installing the plugin:
+
+1. Save your key on one line in `~/.claude/sidetrack/openai_key`, or export `OPENAI_API_KEY`.
+2. Add this to `~/.claude/settings.json` (merge into an existing `env` block if you have one):
+
+```json
+{ "env": { "SIDETRACK_BACKEND": "openai" } }
+```
+
+3. Start a new Claude Code session.
+
+Luna calls go straight to the OpenAI API, so they take a couple of seconds and are billed to your OpenAI account rather than your Claude plan. To pick a different model or endpoint, set `SIDETRACK_OPENAI_MODEL` or `SIDETRACK_OPENAI_BASE_URL` in the same `env` block. Full details in [the Claude Code guide](docs/claude-code.md#using-luna-with-an-openai-api-key).
+
 **Codex** - requires Python 3.11+, a current Codex client, and Luna access:
 
 ```sh
