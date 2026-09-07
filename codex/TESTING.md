@@ -16,6 +16,10 @@ recorded v1/v2/v3 states, managed-hook removal, preservation of unrelated settin
 backups, and uninstall. Tests do not call models. Temporary test directories are
 retained for inspection.
 
+The retained `read_hook.py` and `hook_config.py` modules describe the legacy v3
+guard. Their tests preserve read-decision and hook-ownership coverage. The v4
+installer does not register that guard; migration retires its recorded entry.
+
 Run the command for the current result. GitHub Actions also runs the suite on
 Windows, macOS, and Linux with Python 3.11 and 3.13; consult the latest Actions run.
 

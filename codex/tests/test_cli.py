@@ -22,7 +22,7 @@ def events(answer="answer", complete=True):
 
 class CLITests(unittest.TestCase):
     def setUp(self):
-        self.root = Path(tempfile.mkdtemp(prefix="kirby-cli-test-"))
+        self.root = Path(tempfile.mkdtemp(prefix="kirby-cli-test-")).resolve()
         (self.root / "ref.py").write_text("def double(x):\n    return x * 2\n")
 
     def invoke(self, args, outputs):
@@ -56,6 +56,15 @@ class CLITests(unittest.TestCase):
         rc, runner = self.invoke(["write", "--spec", "replace", "--reference", "ref.py", "--target", "ref.py"], [])
         self.assertEqual(rc, 1)
         self.assertEqual(runner.call_count, 0)
+
+    def test_inaccessible_login_does_not_claim_sign_in_missing(self):
+        failed = subprocess.CompletedProcess([], 1, "", "Access is denied")
+        with patch.object(cli, "executable", return_value="codex"), patch.object(cli.subprocess, "run", return_value=failed) as runner:
+            args = type("Args", (), dict(workspace=self.root, mode="read", report=None,
+                        paths=["ref.py"], question="What?", codex_bin=None))()
+            with self.assertRaisesRegex(ValueError, "Cannot verify Codex sign-in"):
+                cli.run(args)
+        self.assertEqual(runner.call_count, 1)
 
     def test_incomplete_response_never_writes(self):
         rc, _ = self.invoke(["write", "--spec", "triple", "--reference", "ref.py", "--target", "out.py"],

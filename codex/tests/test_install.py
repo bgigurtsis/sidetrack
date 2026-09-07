@@ -16,7 +16,7 @@ SPEC.loader.exec_module(installer)
 
 class InstallerTests(unittest.TestCase):
     def setUp(self):
-        self.root = Path(tempfile.mkdtemp(prefix="kirby-test-"))
+        self.root = Path(tempfile.mkdtemp(prefix="kirby-test-")).resolve()
 
     def run_action(self, action, *args):
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
@@ -38,6 +38,19 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(self.run_action("install"), 0)
         after = {p.relative_to(self.root): p.read_bytes() for p in self.root.rglob("*") if p.is_file()}
         self.assertEqual(before, after)
+
+    def test_checkout_newlines_do_not_change_installed_assets(self):
+        self.run_action("install")
+        before = {p.relative_to(self.root): p.read_bytes() for p in self.root.rglob("*") if p.is_file()}
+        source = Path(tempfile.mkdtemp(prefix="kirby-crlf-")).resolve()
+        for name in installer.ASSETS:
+            dest = source / installer.SOURCES[name]
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            data = (installer.SOURCE / installer.SOURCES[name]).read_bytes()
+            dest.write_bytes(data.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+        with patch.object(installer, "SOURCE", source):
+            self.assertEqual(self.run_action("install"), 0)
+        self.assertEqual(before, {p.relative_to(self.root): p.read_bytes() for p in self.root.rglob("*") if p.is_file()})
 
     def test_allow_rule_requires_opt_in_and_survives_reinstall(self):
         self.run_action("install")

@@ -189,7 +189,8 @@ def install(root, dry_run=False, allow_luna=False):
     if state:
         check_owned(root, state)
     hook_changes = retired_hook_changes(root, state)
-    assets = {name: (SOURCE / SOURCES[name]).read_bytes() for name in ASSETS}
+    # Keep installed assets stable across Git's Windows newline conversion.
+    assets = {name: (SOURCE / SOURCES[name]).read_bytes().replace(b"\r\n", b"\n") for name in ASSETS}
     if allow_luna:
         pattern = [str(Path(sys.executable).resolve()), str(target(root, ASSETS[0]))]
         assets[RULE] = (
