@@ -1,23 +1,23 @@
 ---
-name: sidetrack-read
-description: Delegate reading of large files (or many files) to a cheap worker model (Claude Haiku by default) and receive a short bulleted answer instead of loading the files into context. Use when a Read is blocked by the sidetrack hook, when a question spans several files, or when you need to understand what a large file does before deciding which section to read.
+name: kirby-read
+description: Delegate reading of large files (or many files) to a cheap worker model (Claude Haiku by default) and receive a short bulleted answer instead of loading the files into context. Use when a Read is blocked by the kirby hook, when a question spans several files, or when you need to understand what a large file does before deciding which section to read.
 ---
 
-# sidetrack-read
+# kirby-read
 
 Send files plus a question to the worker model (Haiku by default, or Luna via the openai backend). Only the answer enters your context. The files never do.
 
 ## Invocation
 
 ```bash
-python "${CLAUDE_PLUGIN_ROOT}/scripts/sidetrack.py" read --question "<question>" --paths <file> [<file> ...]
+python "${CLAUDE_PLUGIN_ROOT}/scripts/kirby.py" read --question "<question>" --paths <file> [<file> ...]
 ```
 
 Globs are accepted in `--paths` (for example `src/**/*.py`). Token usage and cost are printed to stderr.
 
 ## When to use
 
-- The sidetrack hook blocked a whole-file Read of a large file.
+- The kirby hook blocked a whole-file Read of a large file.
 - The question is about *what* code does: structure, call graph, which functions touch X, how a module is organised.
 - The same question spans several files. Send them all in one call.
 - Follow-up questions: call again with the same paths. Re-sending is cheap because the files never enter your context.
@@ -39,4 +39,4 @@ Be specific and ask for structure:
 
 ## Escape hatch
 
-`SIDETRACK_DISABLE=1` in the environment makes the hooks allow everything. `SIDETRACK_MIN_LINES` changes the threshold.
+`KIRBY_DISABLE=1` in the environment makes the hooks allow everything. `KIRBY_MIN_LINES` changes the threshold.

@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-SPEC = importlib.util.spec_from_file_location("sidetrack_cli", Path(__file__).parents[1] / "cli.py")
+SPEC = importlib.util.spec_from_file_location("kirby_cli", Path(__file__).parents[1] / "cli.py")
 cli = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(cli)
 
@@ -22,7 +22,7 @@ def events(answer="answer", complete=True):
 
 class CLITests(unittest.TestCase):
     def setUp(self):
-        self.root = Path(tempfile.mkdtemp(prefix="sidetrack-cli-test-"))
+        self.root = Path(tempfile.mkdtemp(prefix="kirby-cli-test-"))
         (self.root / "ref.py").write_text("def double(x):\n    return x * 2\n")
 
     def invoke(self, args, outputs):

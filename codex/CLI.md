@@ -1,8 +1,15 @@
-# CLI workers
+# Optional CLI workers
 
-Sidetrack calls `codex exec` with Luna through your existing ChatGPT
-sign-in. It works as an ordinary shell tool call; no native subagent is spawned.
-The global installer installs this CLI workflow and migrates old subagent installations.
+Kirby's default workflow uses native Luna subagents. The installed CLI is an
+optional tool that calls `codex exec` with Luna through your existing ChatGPT
+sign-in. Use it only after an explicit request for CLI execution and authorization
+for Luna to process the selected task-relevant source through that CLI. Do not
+use it as an automatic fallback when native delegation is unavailable or blocked.
+
+The optional CLI requires a current Codex CLI and ChatGPT sign-in. It runs as a
+shell tool call and does not spawn a native subagent. Normal sandbox restrictions
+and automatic approval review still apply. A direct-command allow rule is not
+authorization to bypass a transfer rejection; see [setup](setup.md).
 
 ```sh
 python3 codex/cli.py --workspace /path/to/project read --question "Which services retry?" --paths src/services.py

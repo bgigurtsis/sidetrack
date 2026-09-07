@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""sidetrack: send bulk file reading and boilerplate generation to a cheap worker model instead of your main model.
+"""kirby: send bulk file reading and boilerplate generation to a cheap worker model instead of your main model.
 
 Default backend ("claude"): Claude Haiku through `claude -p --model haiku`. Works with a Claude Code subscription
 alone; no API key, usage billed to your existing plan.
@@ -13,17 +13,17 @@ Subcommands
                Generate a file matching the reference's patterns; writes to T or stdout.
 
 Environment (all optional)
-  SIDETRACK_MIN_LINES        line threshold above which reads are redirected (default 350)
-  SIDETRACK_BACKEND          "claude" (default) or "openai"
-  SIDETRACK_DISABLE=1        hooks allow everything (escape hatch)
+  KIRBY_MIN_LINES        line threshold above which reads are redirected (default 350)
+  KIRBY_BACKEND          "claude" (default) or "openai"
+  KIRBY_DISABLE=1        hooks allow everything (escape hatch)
   -- claude backend --
-  SIDETRACK_MODEL            worker model passed to `claude --model` (default haiku)
-  SIDETRACK_CLAUDE_BIN       path to the claude executable (default: CLAUDE_CODE_EXECPATH, then `claude` on PATH)
+  KIRBY_MODEL            worker model passed to `claude --model` (default haiku)
+  KIRBY_CLAUDE_BIN       path to the claude executable (default: CLAUDE_CODE_EXECPATH, then `claude` on PATH)
   -- openai backend --
-  SIDETRACK_OPENAI_MODEL     model name (default gpt-5.6-luna)
-  SIDETRACK_OPENAI_EFFORT    reasoning_effort (default low)
-  SIDETRACK_OPENAI_BASE_URL  endpoint (default https://api.openai.com/v1)
-  OPENAI_API_KEY             API key; else read from SIDETRACK_OPENAI_KEY_FILE or ~/.claude/sidetrack/openai_key
+  KIRBY_OPENAI_MODEL     model name (default gpt-5.6-luna)
+  KIRBY_OPENAI_EFFORT    reasoning_effort (default low)
+  KIRBY_OPENAI_BASE_URL  endpoint (default https://api.openai.com/v1)
+  OPENAI_API_KEY             API key; else read from KIRBY_OPENAI_KEY_FILE or ~/.claude/kirby/openai_key
 """
 from __future__ import annotations
 
@@ -42,14 +42,14 @@ import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-MIN_LINES = int(os.environ.get("SIDETRACK_MIN_LINES", "350"))
-BACKEND = os.environ.get("SIDETRACK_BACKEND", "claude").lower()
-MODEL = os.environ.get("SIDETRACK_MODEL", "haiku")
-OPENAI_MODEL = os.environ.get("SIDETRACK_OPENAI_MODEL", "gpt-5.6-luna")
-OPENAI_EFFORT = os.environ.get("SIDETRACK_OPENAI_EFFORT", "low")
-OPENAI_BASE_URL = os.environ.get("SIDETRACK_OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
-OPENAI_KEY_FILE = Path(os.environ.get("SIDETRACK_OPENAI_KEY_FILE") or Path.home() / ".claude" / "sidetrack" / "openai_key")
-SCRIPT = str(HERE / "sidetrack.py").replace("\\", "/")
+MIN_LINES = int(os.environ.get("KIRBY_MIN_LINES", "350"))
+BACKEND = os.environ.get("KIRBY_BACKEND", "claude").lower()
+MODEL = os.environ.get("KIRBY_MODEL", "haiku")
+OPENAI_MODEL = os.environ.get("KIRBY_OPENAI_MODEL", "gpt-5.6-luna")
+OPENAI_EFFORT = os.environ.get("KIRBY_OPENAI_EFFORT", "low")
+OPENAI_BASE_URL = os.environ.get("KIRBY_OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+OPENAI_KEY_FILE = Path(os.environ.get("KIRBY_OPENAI_KEY_FILE") or Path.home() / ".claude" / "kirby" / "openai_key")
+SCRIPT = str(HERE / "kirby.py").replace("\\", "/")
 INVOKE = f'python "{SCRIPT}"'
 
 TEXT_SKIP_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico", ".pdf", ".ipynb",
@@ -95,14 +95,14 @@ def expand_paths(paths: list[str]) -> list[str]:
             if Path(h).is_file() and h not in out:
                 out.append(h)
             elif not Path(h).exists():
-                sys.stderr.write(f"sidetrack: no such file: {h}\n")
+                sys.stderr.write(f"kirby: no such file: {h}\n")
     return out
 
 
 def claude_bin() -> list[str]:
-    cand = os.environ.get("SIDETRACK_CLAUDE_BIN") or os.environ.get("CLAUDE_CODE_EXECPATH") or shutil.which("claude")
+    cand = os.environ.get("KIRBY_CLAUDE_BIN") or os.environ.get("CLAUDE_CODE_EXECPATH") or shutil.which("claude")
     if not cand:
-        sys.exit("sidetrack: cannot find the `claude` executable. Set SIDETRACK_CLAUDE_BIN.")
+        sys.exit("kirby: cannot find the `claude` executable. Set KIRBY_CLAUDE_BIN.")
     if os.name == "nt" and cand.lower().endswith((".cmd", ".bat")):
         return ["cmd", "/c", cand]
     return [cand]
@@ -112,7 +112,7 @@ def ask_worker(system: str, user: str) -> str:
     if BACKEND == "openai":
         return ask_openai(system, user)
     if BACKEND != "claude":
-        sys.exit(f'sidetrack: unknown SIDETRACK_BACKEND "{BACKEND}" (use "claude" or "openai")')
+        sys.exit(f'kirby: unknown KIRBY_BACKEND "{BACKEND}" (use "claude" or "openai")')
     return ask_claude(system, user)
 
 
@@ -125,7 +125,7 @@ def load_openai_key() -> str:
             return key
     except OSError:
         pass
-    sys.exit(f"sidetrack: no OpenAI key. Set OPENAI_API_KEY, or put the key on one line in {OPENAI_KEY_FILE}")
+    sys.exit(f"kirby: no OpenAI key. Set OPENAI_API_KEY, or put the key on one line in {OPENAI_KEY_FILE}")
 
 
 def ask_openai(system: str, user: str, max_tokens: int = 16384, retries: int = 3) -> str:
@@ -152,15 +152,15 @@ def ask_openai(system: str, user: str, max_tokens: int = 16384, retries: int = 3
             if e.code in (429, 500, 502, 503) and attempt < retries - 1:
                 time.sleep(2 ** attempt)
                 continue
-            sys.exit(f"sidetrack: HTTP {e.code} from {OPENAI_BASE_URL}: {detail}")
+            sys.exit(f"kirby: HTTP {e.code} from {OPENAI_BASE_URL}: {detail}")
         except (urllib.error.URLError, TimeoutError) as e:
             if attempt < retries - 1:
                 time.sleep(2 ** attempt)
                 continue
-            sys.exit(f"sidetrack: connection failed: {e}")
+            sys.exit(f"kirby: connection failed: {e}")
     u = data.get("usage", {})
     sys.stderr.write(
-        f"sidetrack: backend=openai model={OPENAI_MODEL} effort={OPENAI_EFFORT} "
+        f"kirby: backend=openai model={OPENAI_MODEL} effort={OPENAI_EFFORT} "
         f"in={u.get('prompt_tokens', '?')} out={u.get('completion_tokens', '?')} ({time.time() - t0:.1f}s)\n"
     )
     return data["choices"][0]["message"]["content"] or ""
@@ -182,18 +182,18 @@ def ask_claude(system: str, user: str) -> str:
         proc = subprocess.run(cmd, input=user, capture_output=True, text=True, encoding="utf-8",
                               timeout=300, env=env)
     except subprocess.TimeoutExpired:
-        sys.exit("sidetrack: worker timed out after 300s. Send fewer files or a narrower question.")
+        sys.exit("kirby: worker timed out after 300s. Send fewer files or a narrower question.")
     if proc.returncode != 0 and not proc.stdout.strip():
-        sys.exit(f"sidetrack: claude exited {proc.returncode}: {proc.stderr.strip()[:500]}")
+        sys.exit(f"kirby: claude exited {proc.returncode}: {proc.stderr.strip()[:500]}")
     try:
         data = json.loads(proc.stdout)
     except json.JSONDecodeError:
-        sys.exit(f"sidetrack: unexpected output from claude: {proc.stdout[:500]}")
+        sys.exit(f"kirby: unexpected output from claude: {proc.stdout[:500]}")
     if data.get("is_error"):
-        sys.exit(f"sidetrack: worker error: {data.get('result', '')[:500]}")
+        sys.exit(f"kirby: worker error: {data.get('result', '')[:500]}")
     usage = data.get("usage", {})
     sys.stderr.write(
-        f"sidetrack: backend=claude model={MODEL} in={usage.get('input_tokens', '?')} "
+        f"kirby: backend=claude model={MODEL} in={usage.get('input_tokens', '?')} "
         f"cache_write={usage.get('cache_creation_input_tokens', 0)} cache_read={usage.get('cache_read_input_tokens', 0)} "
         f"out={usage.get('output_tokens', '?')} "
         f"cost=${data.get('total_cost_usd', 0):.4f} ({time.time() - t0:.1f}s)\n"
@@ -221,7 +221,7 @@ def block(msg: str) -> None:
 
 # ----------------------------------------------------------------------------- hooks
 def hook_read() -> None:
-    if os.environ.get("SIDETRACK_DISABLE"):
+    if os.environ.get("KIRBY_DISABLE"):
         return
     try:
         payload = json.load(sys.stdin)
@@ -237,11 +237,11 @@ def hook_read() -> None:
     if n <= MIN_LINES:
         return
     block(
-        f"sidetrack: {path} is {n} lines (> {MIN_LINES}). Do not read it whole. Either:\n"
+        f"kirby: {path} is {n} lines (> {MIN_LINES}). Do not read it whole. Either:\n"
         f"  1. Delegate understanding to the cheap worker (preferred):\n"
         f'     {INVOKE} read --question "<what you need to know>" --paths "{path}"\n'
         f"  2. Or read only the section you need: Read with offset/limit (targeted reads are always allowed).\n"
-        f"See the sidetrack-read skill. Set SIDETRACK_MIN_LINES to change the threshold."
+        f"See the kirby-read skill. Set KIRBY_MIN_LINES to change the threshold."
     )
 
 
@@ -249,7 +249,7 @@ BASH_READERS = {"cat", "less", "more", "head", "tail", "type"}
 
 
 def hook_bash() -> None:
-    if os.environ.get("SIDETRACK_DISABLE"):
+    if os.environ.get("KIRBY_DISABLE"):
         return
     try:
         payload = json.load(sys.stdin)
@@ -278,7 +278,7 @@ def hook_bash() -> None:
                 n = count_lines(a)
                 if n > MIN_LINES:
                     block(
-                        f"sidetrack: `{prog} {a}` would dump {n} lines (> {MIN_LINES}) into context. Instead:\n"
+                        f"kirby: `{prog} {a}` would dump {n} lines (> {MIN_LINES}) into context. Instead:\n"
                         f'  {INVOKE} read --question "<what you need to know>" --paths "{a}"\n'
                         f"or use a targeted read (grep, sed -n, head -n, or Read with offset/limit)."
                     )
@@ -288,7 +288,7 @@ def hook_bash() -> None:
 def cmd_read(a: argparse.Namespace) -> None:
     paths = expand_paths(a.paths)
     if not paths:
-        sys.exit("sidetrack: no readable files given")
+        sys.exit("kirby: no readable files given")
     user = f"<question>\n{a.question}\n</question>\n\n{wrap_files(paths)}"
     print(ask_worker(READER_SYSTEM, user))
 
@@ -296,10 +296,10 @@ def cmd_read(a: argparse.Namespace) -> None:
 def cmd_write(a: argparse.Namespace) -> None:
     refs = expand_paths(a.reference)
     if not refs:
-        sys.exit("sidetrack: at least one existing --reference file is required")
+        sys.exit("kirby: at least one existing --reference file is required")
     ctx = expand_paths(a.context) if a.context else []
     if a.target and Path(a.target).exists() and not a.force:
-        sys.exit(f"sidetrack: {a.target} exists; pass --force to overwrite")
+        sys.exit(f"kirby: {a.target} exists; pass --force to overwrite")
     user = (
         f"<spec>\n{a.spec}\n</spec>\n\n"
         f"<reference_files note=\"match these patterns exactly\">\n{wrap_files(refs)}\n</reference_files>\n"
@@ -310,13 +310,13 @@ def cmd_write(a: argparse.Namespace) -> None:
     if a.target:
         Path(a.target).parent.mkdir(parents=True, exist_ok=True)
         Path(a.target).write_text(code, encoding="utf-8", newline="\n")
-        print(f"sidetrack: wrote {a.target} ({code.count(chr(10))} lines)")
+        print(f"kirby: wrote {a.target} ({code.count(chr(10))} lines)")
     else:
         sys.stdout.write(code)
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(prog="sidetrack", description=__doc__,
+    ap = argparse.ArgumentParser(prog="kirby", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("hook-read")

@@ -1,7 +1,10 @@
-# CLI versus native subagents
+# Historical CLI versus native subagent comparison
 
-For these small, fully specified tasks, the CLI workflow was faster and produced
-correct results. Sidetrack now uses the CLI for both modes.
+These trials were measured on 6 September 2026. For these small, fully specified
+tasks, the CLI workflow was faster and produced correct results. Kirby now uses
+native Luna subagents by default; the CLI is optional and requires an explicit
+request and source-processing authorization. The timings do not assess today's
+approval behavior or verify the migrated installation.
 
 | Task | CLI trial 1 / 2 | Native trial 1 / 2 |
 | --- | --- | --- |

@@ -1,37 +1,37 @@
-# Sidetrack for Codex
+# Kirby for Codex
 
-Use **Luna through the Codex CLI** for substantial file reading and routine code
-generation. Your selected main model handles reasoning and review. Uses your
-existing ChatGPT/Codex subscription sign-in, without Portal, API keys, or subagents.
+Use **native Luna subagents** for substantial file reading and routine code
+generation. Your selected main model handles reasoning, integration, and review.
+The reader and writer use `gpt-5.6-luna` with medium reasoning effort.
 
 ## Install or update
 
-Requires Python **3.11+**, a current Codex CLI, and subscription access to Luna.
-Run `codex login status` to check that you are signed in with ChatGPT.
+Requires Python **3.11+**, a Codex client with native subagent support, and Luna
+access through your existing ChatGPT/Codex sign-in.
 
 ```sh
 python3 codex/install.py install
 ```
 
 Run from this checkout. Windows: use `py -3` instead of `python3`. Start a new task
-after installation. Existing Sidetrack subagent installations are migrated: old
-agent files are archived and routing switches to the CLI.
+after installation. Recorded v1, v2, and v3 installations migrate to v4 native
+routing. Migration removes the recorded Kirby read hook while preserving
+unrelated hooks, settings, and sign-in.
 
 ## Use
 
-Ask Codex to work normally, or invoke `$sidetrack-luna`. The installed skill calls
-the script before loading bulk source into your main conversation.
+Ask Codex to work normally, or invoke `$kirby-luna`. Codex delegates bounded read
+or generation work when it can run independently alongside useful main-model
+work. The main model reviews findings or generated changes and validates them.
 
-You can also run it directly from this checkout:
+Small tasks and targeted reads stay with the main model. If native delegation or
+Luna is unavailable or blocked, Codex reports the limitation and continues
+directly. It does not automatically retry through the CLI, another model, or an
+API key. Routing is advisory; no blocking read hook is installed.
 
-```sh
-python3 codex/cli.py --workspace /path/to/project read --question "Which services retry?" --paths src/services.py
-python3 codex/cli.py --workspace /path/to/project write --spec "Generate the specified tests" --reference tests/test_users.py --target tests/test_orders.py
-```
-
-The script reads files, sends their contents to Luna, and returns a short answer.
-In write mode it saves code to a **new target file**. Your main model reviews and
-validates the result. Small tasks stay local; routing is advisory.
+The CLI remains installed as an optional tool. Use it only after an explicit CLI
+request and authorization for the selected source to be processed by Luna through
+the signed-in CLI. See [CLI options](CLI.md).
 
 ## Manage
 
@@ -40,9 +40,9 @@ python3 codex/install.py status
 python3 codex/install.py uninstall
 ```
 
-Settings and sign-in are preserved. Removal archives managed files in recoverable
-backups. Workers consume subscription allowance; model availability and limits apply.
+Removal archives managed files in recoverable backups. Workers consume account
+allowance; model availability and limits apply. Native delegation remains subject
+to normal permissions and approval review.
 
-[Detailed setup](setup.md) - [CLI options](CLI.md) -
-[Comparison with subagents](CLI-COMPARISON.md) - [Tests](TESTING.md)
-
+[Detailed setup](setup.md) - [Historical comparison](CLI-COMPARISON.md) -
+[Tests](TESTING.md) - [Official subagent documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents)

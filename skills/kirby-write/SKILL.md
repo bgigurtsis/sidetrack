@@ -1,16 +1,16 @@
 ---
-name: sidetrack-write
+name: kirby-write
 description: Delegate generation of predictable boilerplate (tests that mirror existing tests, config stubs, type stubs, fixtures, repetitive adapters) to a cheap worker model (Claude Haiku by default), writing the result straight to disk so the generated code never enters your context. Use when the output is fully determined by a spec plus an existing reference file.
 ---
 
-# sidetrack-write
+# kirby-write
 
 The worker model (Haiku by default, or Luna via the openai backend) generates a file that matches a reference file's patterns. The code is written to disk directly.
 
 ## Invocation
 
 ```bash
-python "${CLAUDE_PLUGIN_ROOT}/scripts/sidetrack.py" write --spec "<what to generate>" --reference <pattern-file> [--context <dep-file> ...] --target <output-path>
+python "${CLAUDE_PLUGIN_ROOT}/scripts/kirby.py" write --spec "<what to generate>" --reference <pattern-file> [--context <dep-file> ...] --target <output-path>
 ```
 
 - `--reference` is required: one or more existing files whose style, imports, naming and structure the output must copy.
@@ -27,7 +27,7 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/sidetrack.py" write --spec "<what to gener
 ## When NOT to use
 
 - Anything requiring judgment about design, edge cases, or correctness of non-trivial logic.
-- Edits to existing files. sidetrack-write creates whole files only. Use Edit for changes.
+- Edits to existing files. kirby-write creates whole files only. Use Edit for changes.
 - Safety-critical or security-sensitive code.
 
 ## After generating

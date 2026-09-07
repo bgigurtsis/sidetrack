@@ -1,4 +1,4 @@
-# Sidetrack
+# Kirby
 
 Send large file reads and routine code generation to a smaller model. Keep your
 chosen main model for reasoning and review. Uses your existing subscription
@@ -7,26 +7,31 @@ sign-in, with no Portal or API key.
 | Client | Worker | Routing |
 | --- | --- | --- |
 | Claude Code | Haiku, or Luna with an OpenAI key (opt-in) | Hooks redirect large reads; skills handle generation |
-| Codex | Luna | A standing note in `AGENTS.md` asks the model to hand big reads and generation to Luna subagents. Advisory, not enforced |
+| Codex | Native Luna subagents | `AGENTS.md` and a skill request bounded, independent reading and generation alongside useful main-model work. Advisory |
 
 ## Install
 
 **Claude Code** - requires Python 3.10+:
 
 ```sh
-claude plugin marketplace add bgigurtsis/sidetrack
-claude plugin install sidetrack@sidetrack
+claude plugin marketplace add bgigurtsis/kirby
+claude plugin install kirby@kirby
 ```
 
 **Codex** - requires Python 3.11+, a current Codex client, and Luna access:
 
 ```sh
-git clone https://github.com/bgigurtsis/sidetrack.git
-cd sidetrack
+git clone https://github.com/bgigurtsis/kirby.git
+cd kirby
 python3 codex/install.py install
 ```
 
 On Windows, use `py -3` instead of `python3`. Start a new task after installing.
+
+Codex defaults to native Luna reader and writer agents. The CLI remains optional
+for explicitly requested, authorized calls. `install --allow-luna` adds an opt-in
+direct-command permission; it does not resolve automatic approval rejections.
+Read the [consent scope and Windows wrapper limitation](codex/setup.md) first.
 
 ## How it works
 
@@ -50,7 +55,10 @@ The two clients enforce this differently. In Claude Code a hook runs before ever
 file read and refuses reads over 350 lines, so the model has to delegate or read a
 smaller slice. Codex has no hooks, so the installer adds a standing note to
 `AGENTS.md` asking the model to delegate. It usually does, but nothing stops it
-reading a big file directly. Workers consume subscription allowance; savings vary
+reading a big file directly. If native delegation or Luna is unavailable or blocked,
+Codex reports that and continues with targeted direct work, without an automatic
+CLI retry. Installation migrates recorded older Codex workflows and removes only
+Kirby's recorded read hook. Workers consume subscription allowance; savings vary
 and are not guaranteed.
 
 ## Using Luna as the worker in Claude Code
@@ -67,16 +75,16 @@ Why you might not: you need an OpenAI key, and Luna does not know Claude Code's 
 
 Setup, after installing the plugin:
 
-1. Save your key on one line in `~/.claude/sidetrack/openai_key`, or export `OPENAI_API_KEY`.
+1. Save your key on one line in `~/.claude/kirby/openai_key`, or export `OPENAI_API_KEY`.
 2. Add this to `~/.claude/settings.json` (merge into an existing `env` block if you have one):
 
 ```json
-{ "env": { "SIDETRACK_BACKEND": "openai" } }
+{ "env": { "KIRBY_BACKEND": "openai" } }
 ```
 
 3. Start a new Claude Code session.
 
-To use a different model or an OpenAI-compatible endpoint, set `SIDETRACK_OPENAI_MODEL` or `SIDETRACK_OPENAI_BASE_URL` in the same `env` block. Full details in [the Claude Code guide](docs/claude-code.md#using-luna-with-an-openai-api-key).
+To use a different model or an OpenAI-compatible endpoint, set `KIRBY_OPENAI_MODEL` or `KIRBY_OPENAI_BASE_URL` in the same `env` block. Full details in [the Claude Code guide](docs/claude-code.md#using-luna-with-an-openai-api-key).
 
 ## Guides
 

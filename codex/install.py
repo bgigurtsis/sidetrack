@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install Sidetrack's subscription-backed Codex CLI worker and routing skill."""
+"""Install Kirby's native Luna subagents, routing skill, and optional CLI."""
 
 import argparse
 import hashlib
@@ -8,35 +8,52 @@ import os
 from pathlib import Path
 import shutil
 import sys
+import tomllib
 from datetime import datetime, timezone
 from uuid import uuid4
 
 SOURCE = Path(__file__).resolve().parent
 ASSETS = (
-    "skills/sidetrack-luna/scripts/sidetrack.py",
-    "skills/sidetrack-luna/SKILL.md",
+    "skills/kirby-luna/scripts/kirby.py",
+    "skills/kirby-luna/SKILL.md",
+    "agents/kirby_luna_bulk_reader.toml",
+    "agents/kirby_luna_code_writer.toml",
 )
-SOURCES = {ASSETS[0]: "cli.py", ASSETS[1]: ASSETS[1]}
+CLI_ASSETS = ASSETS[:2]
+READ_HOOK = "skills/kirby-luna/scripts/read_hook.py"
+SOURCES = {name: name for name in ASSETS}
+SOURCES[ASSETS[0]] = "cli.py"
 LEGACY_ASSETS = (
-    "agents/sidetrack_luna_bulk_reader.toml",
-    "agents/sidetrack_luna_code_writer.toml",
-    "skills/sidetrack-luna/SKILL.md",
+    "agents/kirby_luna_bulk_reader.toml",
+    "agents/kirby_luna_code_writer.toml",
+    "skills/kirby-luna/SKILL.md",
 )
-STATE = "sidetrack/install.json"
-START = "<!-- sidetrack:codex:start -->"
-END = "<!-- sidetrack:codex:end -->"
+STATE = "kirby/install.json"
+RULE = "rules/kirby-luna.rules"
+START = "<!-- kirby:codex:start -->"
+END = "<!-- kirby:codex:end -->"
 BLOCK = f"""{START}
-## Sidetrack: Luna delegation
+## Kirby: Luna delegation
 
-Use the `sidetrack-luna` skill and its installed CLI script for substantial file
-reading and predictable code generation. Invoke its `read` or `write` command
-before loading bulk source into the main conversation. This is a standing request
-for one-shot Luna CLI calls, not native subagents, regardless of the main model.
+Use the `kirby-luna` skill for substantial file reading and predictable code
+generation. This is a standing request to delegate suitable bounded tasks to
+native Codex Luna subagents while the main model continues useful independent work.
+Use `kirby_luna_bulk_reader` or `kirby_luna_code_writer`; where the native tool
+accepts model selection instead of custom agents, select `gpt-5.6-luna` with medium
+reasoning and a focused prompt. Pass relevant paths and a question or specification.
 Keep the selected main model for reasoning, integration, and review. Prefer direct
 targeted reads for small tasks. Skip recursive invocation and automatic routing
-when the main model is Luna. Follow the current user's instructions. If Luna or
-the CLI is unavailable, report that and proceed directly; never silently switch
-to subagents, another worker model, or API-key authentication.
+when the main model is Luna or this is already a delegated worker. If native Luna
+delegation is unavailable, report that and continue directly. Follow the current
+user's instructions. Do not automatically launch a separate CLI process as fallback.
+
+Kirby is the renamed Sidetrack workflow. Its current skill is `kirby-luna` and
+its optional CLI is `skills/kirby-luna/scripts/kirby.py`. Use that CLI only when
+the user requests it and authorizes the selected source to be processed by OpenAI
+Luna through their signed-in Codex CLI. Delegation does not authorize other data
+transfers, API-key authentication, or bypassing sandbox and approval controls.
+If approval review denies an action, report the denial and continue permitted
+local work; do not retry the denied transfer through another transport.
 {END}"""
 
 
@@ -68,14 +85,43 @@ def read_state(root):
     if not path.exists():
         return None
     state = json.loads(path.read_text(encoding="utf-8"))
-    expected = {1: set(LEGACY_ASSETS), 2: set(ASSETS)}.get(state.get("version"))
-    if (expected is None or set(state.get("hashes", {})) != expected
+    expected = {1: set(LEGACY_ASSETS), 2: set(CLI_ASSETS),
+                3: set(CLI_ASSETS) | {READ_HOOK}, 4: set(ASSETS)}.get(state.get("version"))
+    actual = set(state.get("hashes", {}))
+    if (expected is None or (actual != expected and not (
+            state.get("version") in (2, 3, 4) and actual == expected | {RULE}))
             or state.get("instructions") not in ("AGENTS.md", "AGENTS.override.md")
             or not isinstance(state.get("block"), str)
             or not state["block"].startswith(START)
             or not state["block"].endswith(END)):
-        raise InstallError("Unrecognized Sidetrack installation record; no files changed.")
+        raise InstallError("Unrecognized Kirby installation record; no files changed.")
+    if state["version"] == 3 and not isinstance(state.get("hook_entry"), dict):
+        raise InstallError("Missing managed Kirby hook record; no files changed.")
     return state
+
+
+def retired_hook_changes(root, state):
+    """Remove only the v3 routing hook; preserve all unrelated hook settings."""
+    if not state or state["version"] != 3:
+        return {}
+    path = target(root, "hooks.json")
+    original = route_text(path)
+    config = json.loads(original)
+    hooks = config.get("hooks") if isinstance(config, dict) else None
+    entries = hooks.get("PreToolUse") if isinstance(hooks, dict) else None
+    if not isinstance(entries, list) or entries.count(state["hook_entry"]) != 1:
+        raise InstallError("Managed Kirby hook changed or missing; no files changed.")
+    entries.remove(state["hook_entry"])
+    if not entries:
+        del hooks["PreToolUse"]
+    if not hooks:
+        del config["hooks"]
+    content = json.dumps(config, indent=2) + "\n"
+    # Restore original formatting only if no unrelated configuration would be lost.
+    before = state.get("hooks_before")
+    if isinstance(before, str) and json.loads(before) == config:
+        content = before
+    return {"hooks.json": content.encode("utf-8")}
 
 
 def check_owned(root, state):
@@ -90,16 +136,23 @@ def route_text(path):
 
 
 def check_markers(text, expected=None):
+    # Some v3 installs wrote AGENTS.md with Windows newline translation while
+    # recording the LF block. Accept only that exact line-ending difference.
+    if expected is not None and text.count(expected) == 0:
+        crlf = expected.replace("\r\n", "\n").replace("\n", "\r\n")
+        if text.count(crlf) == 1:
+            expected = crlf
     if expected is None:
         if START in text or END in text:
-            raise InstallError("Found Sidetrack routing without an installation record.")
+            raise InstallError("Found Kirby routing without an installation record.")
     elif text.count(START) != 1 or text.count(END) != 1 or text.count(expected) != 1:
-        raise InstallError("Sidetrack routing was modified; preserve your changes before proceeding.")
+        raise InstallError("Kirby routing was modified; preserve your changes before proceeding.")
+    return expected
 
 
 def backup_path(root):
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    relative = f"sidetrack/backups/{stamp}-{uuid4().hex[:8]}"
+    relative = f"kirby/backups/{stamp}-{uuid4().hex[:8]}"
     target(root, relative + "/check")
     return root / relative
 
@@ -131,12 +184,30 @@ def save(root, changes, retired=()):
         print(f"Backups: {backup}")
 
 
-def install(root, dry_run=False):
+def install(root, dry_run=False, allow_luna=False):
     state = read_state(root)
     if state:
         check_owned(root, state)
+    hook_changes = retired_hook_changes(root, state)
     assets = {name: (SOURCE / SOURCES[name]).read_bytes() for name in ASSETS}
+    if allow_luna:
+        pattern = [str(Path(sys.executable).resolve()), str(target(root, ASSETS[0]))]
+        assets[RULE] = (
+            "# User opted in with install --allow-luna. Allows this installed script,\n"
+            "# including task-relevant private source processing by OpenAI Luna.\n"
+            "# Does not authorize arbitrary Python or PowerShell commands.\n"
+            "prefix_rule(pattern=" + json.dumps(pattern) + ', decision="allow")\n'
+        ).encode("utf-8")
+    elif state and RULE in state["hashes"]:
+        assets[RULE] = target(root, RULE).read_bytes()
+    if RULE in assets:
+        print("Luna allow rule covers direct interpreter + installed script calls only.")
+        print("PowerShell -Command wrappers do not match; other policies still apply. Restart Codex after installation.")
     compile(assets[ASSETS[0]], ASSETS[0], "exec")
+    for name in ASSETS[2:]:
+        agent = tomllib.loads(assets[name].decode("utf-8"))
+        if not all(agent.get(key) for key in ("name", "description", "developer_instructions")):
+            raise InstallError(f"Incomplete native agent: {name}")
     override = target(root, "AGENTS.override.md")
     instructions = (state["instructions"] if state else
                     "AGENTS.override.md" if override.exists() and override.stat().st_size else "AGENTS.md")
@@ -144,10 +215,12 @@ def install(root, dry_run=False):
         raise InstallError("AGENTS.override.md now shadows the installed routing. Uninstall first, then reinstall.")
     path = target(root, instructions)
     text = route_text(path)
-    check_markers(text, state["block"] if state else None)
+    installed_block = check_markers(text, state["block"] if state else None)
     if state:
-        updated = text.replace(state["block"], BLOCK, 1)
+        updated = text.replace(installed_block, BLOCK, 1)
         separator = state.get("separator", "")
+        if "\r\n" in installed_block and "\r\n" not in state["block"]:
+            separator = separator.replace("\n", "\r\n")
     else:
         separator = "" if not text or text.endswith("\n\n") else "\n" if text.endswith("\n") else "\n\n"
         updated = text + separator + BLOCK
@@ -155,20 +228,20 @@ def install(root, dry_run=False):
         dest = target(root, name)
         if dest.exists() and (not state or name not in state["hashes"]):
             raise InstallError(f"Refusing to overwrite an unowned file: {dest}")
-    retired = tuple(name for name in state["hashes"] if name not in ASSETS) if state else ()
-    record = {"version": 2, "instructions": instructions, "separator": separator,
+    retired = tuple(name for name in state["hashes"] if name not in assets) if state else ()
+    record = {"version": 4, "instructions": instructions, "separator": separator,
               "block": BLOCK, "hashes": {name: digest(content) for name, content in assets.items()}}
-    proposed = {**assets, instructions: updated.encode("utf-8"),
+    proposed = {**assets, **hook_changes, instructions: updated.encode("utf-8"),
                 STATE: (json.dumps(record, indent=2) + "\n").encode("utf-8")}
     changes = {name: data for name, data in proposed.items()
                if not target(root, name).exists() or target(root, name).read_bytes() != data}
     if not changes:
-        print("Sidetrack is already installed and up to date.")
+        print("Kirby is already installed and up to date.")
         return
     for name in changes:
         print(f"{'Would write' if dry_run else 'Install'}: {root / name}")
     for name in retired:
-        print(f"{'Would archive' if dry_run else 'Archive legacy agent'}: {root / name}")
+        print(f"{'Would archive' if dry_run else 'Archive retired asset'}: {root / name}")
     if not dry_run:
         save(root, changes, retired)
         print("Installed. Start a new Codex task. Your main model, config, and sign-in are unchanged.")
@@ -177,16 +250,20 @@ def install(root, dry_run=False):
 def uninstall(root, dry_run=False):
     state = read_state(root)
     if not state:
-        print("Sidetrack is not installed.")
+        print("Kirby is not installed.")
         return
     check_owned(root, state)
+    hook_changes = retired_hook_changes(root, state)
     relative = state["instructions"]
     path = target(root, relative)
     text = route_text(path)
-    check_markers(text, state["block"])
+    installed_block = check_markers(text, state["block"])
     # Remove only our block and the separator we appended; preserve later user text.
-    chunk = state.get("separator", "") + state["block"]
-    updated = text.replace(chunk if chunk in text else state["block"], "", 1)
+    separator = state.get("separator", "")
+    if "\r\n" in installed_block and "\r\n" not in state["block"]:
+        separator = separator.replace("\n", "\r\n")
+    chunk = separator + installed_block
+    updated = text.replace(chunk if chunk in text else installed_block, "", 1)
     for name in (*state["hashes"], STATE):
         print(f"{'Would archive' if dry_run else 'Archive'}: {root / name}")
     if dry_run:
@@ -195,28 +272,34 @@ def uninstall(root, dry_run=False):
     dest = backup / relative
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(path, dest)
+    for name, content in hook_changes.items():
+        hook_path = target(root, name)
+        shutil.copy2(hook_path, backup / name)
+        hook_path.write_bytes(content)
     path.write_bytes(updated.encode("utf-8"))
     for name in (*state["hashes"], STATE):
         archived = backup / name
         archived.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(target(root, name)), str(archived))
-    print(f"Removed active Sidetrack files. Recoverable copies: {backup}")
+    print(f"Removed active Kirby files. Recoverable copies: {backup}")
 
 
 def status(root, dry_run=False):
     state = read_state(root)
     if not state:
-        print("Sidetrack is not installed.")
+        print("Kirby is not installed.")
         return
     check_owned(root, state)
     check_markers(route_text(target(root, state["instructions"])), state["block"])
     override = target(root, "AGENTS.override.md")
     if state["instructions"] == "AGENTS.md" and override.exists() and override.stat().st_size:
         raise InstallError("Routing is shadowed by AGENTS.override.md; uninstall and reinstall.")
-    method = "Luna CLI worker" if state["version"] == 2 else "legacy native agents; run install to migrate"
-    print(f"Installed: {method} and sidetrack-luna skill under {root}")
-    print(f"Routing: {state['instructions']} (advisory; no blocking hooks)")
-    print("Account/model availability is not checked. Run codex login status and a live test.")
+    method = "native Luna subagents with optional CLI" if state["version"] == 4 else "legacy installation; run install to migrate"
+    print(f"Installed: {method} and kirby-luna skill under {root}")
+    routing = "legacy blocking read hook" if state["version"] == 3 else "advisory; no blocking hooks"
+    print(f"Routing: {state['instructions']} ({routing})")
+    print(f"Direct Luna command allow rule: {'enabled' if RULE in state['hashes'] else 'disabled'}")
+    print("Account/model availability is not checked. Start a new task and run the native smoke test.")
 
 
 def main(argv=None):
@@ -224,11 +307,21 @@ def main(argv=None):
     parser.add_argument("action", choices=("install", "status", "uninstall"), nargs="?", default="install")
     parser.add_argument("--codex-home", type=Path, default=Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex"))
     parser.add_argument("--dry-run", action="store_true", help="Show planned changes without writing")
+    parser.add_argument("--allow-luna", action="store_true", help=(
+        "Opt in to persistent approval of the installed Kirby script through this Python "
+        "interpreter, including sending task-relevant private source to OpenAI Luna via "
+        "your signed-in Codex CLI. Does not match PowerShell -Command wrappers."))
     args = parser.parse_args(argv)
+    if args.allow_luna and args.action != "install":
+        parser.error("--allow-luna requires install")
     try:
-        globals()[args.action](args.codex_home.expanduser().resolve(), args.dry_run)
+        root = args.codex_home.expanduser().resolve()
+        if args.action == "install":
+            install(root, args.dry_run, args.allow_luna)
+        else:
+            globals()[args.action](root, args.dry_run)
     except (InstallError, OSError, ValueError, SyntaxError) as exc:
-        print(f"Sidetrack: {exc}", file=sys.stderr)
+        print(f"Kirby: {exc}", file=sys.stderr)
         return 1
     return 0
 
