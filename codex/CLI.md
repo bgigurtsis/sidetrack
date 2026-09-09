@@ -13,7 +13,7 @@ authorization to bypass a transfer rejection; see [setup](setup.md).
 
 ```sh
 python3 codex/cli.py --workspace /path/to/project read --question "Which services retry?" --paths src/services.py
-python3 codex/cli.py --workspace /path/to/project write --spec "Generate the specified tests" --reference tests/test_users.py --context src/orders.py --target tests/test_orders.py
+python3 codex/cli.py --workspace /path/to/project write --spec "Copy the reference test with only the supplied literal label replaced" --reference tests/test_users.py --context src/orders.py --target tests/test_orders.py
 ```
 
 On Windows use `py -3` instead of `python3`. The wrapper locates the desktop app's

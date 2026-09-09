@@ -35,12 +35,16 @@ END = "<!-- kirby:codex:end -->"
 BLOCK = f"""{START}
 ## Kirby: Luna delegation
 
-Use the `kirby-luna` skill for substantial file reading and predictable code
-generation. This is a standing request to delegate suitable bounded tasks to
+Use the `kirby-luna` skill for substantial file reading and only basic mechanical
+boilerplate writes. This is a standing request to delegate suitable bounded tasks to
 native Codex Luna subagents while the main model continues useful independent work.
 Use `kirby_luna_bulk_reader` or `kirby_luna_code_writer`; where the native tool
 accepts model selection instead of custom agents, select `gpt-5.6-luna` with medium
 reasoning and a focused prompt. Pass relevant paths and a question or specification.
+Writers must copy an exact reference with explicit substitutions and no implementation choices.
+The main model must handle new logic, refactors, debugging, integrations, and security-sensitive changes.
+Workers must return ambiguous or complex tasks without writing files.
+Output size and detailed specs must not override these limits.
 Keep the selected main model for reasoning, integration, and review. Prefer direct
 targeted reads for small tasks. Skip recursive invocation and automatic routing
 when the main model is Luna or this is already a delegated worker. If native Luna

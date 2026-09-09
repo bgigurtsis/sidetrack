@@ -1,11 +1,13 @@
 ---
 name: kirby-write
-description: Delegate generation of predictable boilerplate (tests that mirror existing tests, config stubs, type stubs, fixtures, repetitive adapters) to a cheap worker model (Claude Haiku by default), writing the result straight to disk so the generated code never enters your context. Use when the output is fully determined by a spec plus an existing reference file.
+description: Delegate only basic boilerplate file generation to Haiku or Luna from an exact reference and explicit substitutions. Keep logic, design, debugging, and ambiguous work with the main model.
 ---
 
 # kirby-write
 
-The worker model (Haiku by default, or Luna via the openai backend) generates a file that matches a reference file's patterns. The code is written to disk directly.
+The main model may delegate only basic mechanical boilerplate to Haiku or Luna.
+The worker must copy an existing pattern with explicit substitutions.
+The main model must keep all implementation decisions.
 
 ## Invocation
 
@@ -18,18 +20,39 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/kirby.py" write --spec "<what to generate>
 - `--target`: output path. Refuses to overwrite an existing file unless `--force`. Omit to print to stdout.
 - Markdown fences are stripped automatically.
 
-## When to use
+## Before delegating
 
-- Test files that follow the same shape as the tests next to them.
-- Config, fixture, stub, or schema files derived mechanically from an existing one.
-- Repetitive adapters or wrappers where a sibling already shows the exact pattern.
+1. The main model must identify an exact reference, target, and complete list of substitutions or literal values.
+2. The main model must confirm that the worker needs no new logic, inferred behavior, or implementation choices.
+3. The main model must handle the write directly if any requirement remains unclear.
 
-## When NOT to use
+Output size, low temperature, and a detailed spec must not qualify a task by themselves.
+The main model must not split complex implementation into small worker assignments to bypass this limit.
 
-- Anything requiring judgment about design, edge cases, or correctness of non-trivial logic.
-- Edits to existing files. kirby-write creates whole files only. Use Edit for changes.
-- Safety-critical or security-sensitive code.
+## Allowed work
+
+- The worker may copy a static fixture with supplied literal values.
+- The worker may duplicate declarations or config entries with explicitly supplied names and values.
+- The worker may copy an existing trivial function or test with exact substitutions and unchanged behavior or assertions.
+
+## Work the main model must keep
+
+- The main model must implement new logic, algorithms, validation, error handling, and edge cases.
+- The main model must handle refactors, debugging, integrations, and changes that depend on behavior across files.
+- The main model must choose test cases and expected results.
+- The main model must handle security-sensitive code and config that changes access, deployment, or data handling.
+- The main model must edit existing files directly because kirby-write creates whole files.
+
+## Worker specification
+
+The parent must require the worker to match the reference's patterns, conventions, naming, and style exactly.
+The parent must supply every substitution and literal value.
+The parent must forbid reasonable guesses when the spec is ambiguous.
+The parent must resolve ambiguity before invoking this file-output CLI.
+For eligible work, the worker must output only code without explanations or Markdown fences.
 
 ## After generating
 
-Run the tests or a syntax check on the target rather than reading it back. Only read it if something fails, and then read the failing section with a targeted `Read`.
+The main model must review the generated diff against the reference and requested substitutions.
+The main model must run relevant syntax checks or tests before accepting the result.
+Passing checks must not replace review of the generated code.

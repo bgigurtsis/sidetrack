@@ -14,7 +14,8 @@ Ask Codex:
 > Use $kirby-luna's native Luna reader to describe reference.py and cite its
 > lines. While it reads, inspect the scratch workspace's top-level file names.
 > Then use the native Luna writer to create arithmetic.py containing typed triple
-> and quadruple functions following reference.py. While it writes, identify
+> and quadruple copies of reference.py. The writer must replace double/twice/2 with triple/three times/3 and quadruple/four times/4 respectively.
+> While it writes, identify
 > useful input cases for validating those functions. Review and check the result.
 
 Review the tool calls. Workers should use `gpt-5.6-luna` with medium effort,
@@ -38,7 +39,7 @@ ChatGPT sign-in with `codex login status`, then run from the checkout:
 
 ```sh
 python3 codex/cli.py --workspace /path/to/scratch read --question "What does this function do? Cite its lines." --paths reference.py
-python3 codex/cli.py --workspace /path/to/scratch write --spec "Generate triple and quadruple following the reference" --reference reference.py --target arithmetic_cli.py
+python3 codex/cli.py --workspace /path/to/scratch write --spec "Copy reference twice: replace double/twice/2 with triple/three times/3 and quadruple/four times/4 respectively" --reference reference.py --target arithmetic_cli.py
 ```
 
 Use a new output path, review the code, and apply the same input checks to the

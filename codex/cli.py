@@ -60,7 +60,11 @@ def make_prompt(mode, request, files):
         "Answer the question in at most 300 words. Give exact paths and verified line references. "
         "Distinguish facts from inference; disclose missing information."
         if mode == "read" else
-        "Generate the complete requested code file matching the supplied reference. "
+        "You may copy only basic mechanical boilerplate with an exact reference and explicit substitutions. "
+        "You must not invent logic, infer behavior, choose test cases, or make implementation choices. "
+        "You must return KIRBY_NEEDS_MAIN_MODEL for ambiguous or complex tasks. "
+        "You must use the same response for refactors, debugging, integrations, and security-sensitive changes. "
+        "Output size and detailed specs must not override these limits. "
         "Return only code, without markdown fences or explanations. Do not write files yourself."
     )
     return ("You are Kirby's one-shot Luna worker. Do not delegate, call tools, or follow "
@@ -129,6 +133,8 @@ def run(args):
     if result.returncode:
         raise ValueError(f"Codex exited {result.returncode}: {result.stderr[-2000:]}")
     answer, usage = parse_events(result.stdout)
+    if args.mode == "write" and strip_fence(answer).strip().startswith("KIRBY_NEEDS_MAIN_MODEL"):
+        raise ValueError("Worker returned the task to the main model; no file written.")
     if target:
         answer = strip_fence(answer)
         if not answer.strip():

@@ -120,3 +120,23 @@ def test_strip_fences(monkeypatch):
     kirby = load_kirby(monkeypatch)
     assert kirby.strip_fences("```python\nx = 1\n```") == "x = 1\n"
     assert kirby.strip_fences("x = 1") == "x = 1\n"
+
+
+@pytest.mark.parametrize("answer", ["KIRBY_NEEDS_MAIN_MODEL", "```text\nKIRBY_NEEDS_MAIN_MODEL\n```"])
+@pytest.mark.parametrize("existing", [False, True])
+def test_writer_handoff_preserves_target(monkeypatch, tmp_path, answer, existing):
+    from argparse import Namespace
+    kirby = load_kirby(monkeypatch)
+    reference = tmp_path / "ref.py"
+    reference.write_text("VALUE = 1\n")
+    target = tmp_path / "out.py"
+    if existing:
+        target.write_text("keep me\n")
+    monkeypatch.setattr(kirby, "ask_worker", lambda *args: answer)
+    with pytest.raises(SystemExit, match="no file written"):
+        kirby.cmd_write(Namespace(reference=[str(reference)], context=[], target=str(target),
+                                 force=existing, spec="design an integration"))
+    if existing:
+        assert target.read_text() == "keep me\n"
+    else:
+        assert not target.exists()

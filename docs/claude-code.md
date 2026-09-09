@@ -27,10 +27,10 @@ Two hooks and two skills.
 python "$CLAUDE_PLUGIN_ROOT/scripts/kirby.py" read --question "Which functions touch the database?" --paths src/service.py src/handler.py
 ```
 
-**`kirby write`** generates boilerplate from a spec and a reference file, then writes it straight to disk. Claude never sees the generated code.
+**`kirby write`** generates boilerplate from a spec and a reference file, then writes it straight to disk. Claude must review the generated diff before accepting it.
 
 ```bash
-python "$CLAUDE_PLUGIN_ROOT/scripts/kirby.py" write --spec "Tests for UserService" --reference tests/test_orders.py --context src/users.py --target tests/test_users.py
+python "$CLAUDE_PLUGIN_ROOT/scripts/kirby.py" write --spec "Copy the reference test with only the literal label orders replaced by users" --reference tests/test_orders.py --context src/users.py --target tests/test_users.py
 ```
 
 Claude knows how and when to use both through the bundled skills. You don't have to call them yourself.

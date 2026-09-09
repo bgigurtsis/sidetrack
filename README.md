@@ -1,13 +1,13 @@
 # Kirby
 
-Send large file reads and routine code generation to a smaller model. Keep your
+Send large file reads and basic mechanical boilerplate writes to a smaller model. Keep your
 chosen main model for reasoning and review. Uses your existing subscription
 sign-in, with no Portal or API key.
 
 | Client | Worker | Routing |
 | --- | --- | --- |
-| Claude Code | Haiku, or Luna with an OpenAI key (opt-in) | Hooks redirect large reads; skills handle generation |
-| Codex | Native Luna subagents | `AGENTS.md` and a skill request bounded, independent reading and generation alongside useful main-model work. Advisory |
+| Claude Code | Haiku, or Luna with an OpenAI key (opt-in) | Hooks redirect large reads; skills handle basic boilerplate |
+| Codex | Native Luna subagents | `AGENTS.md` and a skill request bounded, independent reading and basic boilerplate alongside useful main-model work. Advisory |
 
 ## Install
 
@@ -36,7 +36,7 @@ Read the [consent scope and Windows wrapper limitation](codex/setup.md) first.
 ## How it works
 
 1. Your main model gives the worker a focused question or specification and file paths.
-2. **Bulk-reader** reads the files and returns concise findings. **Code-writer** follows reference files and writes code directly to the workspace.
+2. **Bulk-reader** reads the files and returns concise findings. **Code-writer** may copy only basic boilerplate with explicit substitutions. The main model must review the diff.
 3. Your main model reviews the findings or changes and checks the result.
 
 ```text

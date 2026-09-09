@@ -46,6 +46,13 @@ class CLITests(unittest.TestCase):
         self.assertIn('forced_login_method="chatgpt"', call.args[0])
         self.assertIn("read-only", call.args[0])
 
+    def test_worker_handoff_never_writes(self):
+        for answer in ("KIRBY_NEEDS_MAIN_MODEL", "```text\nKIRBY_NEEDS_MAIN_MODEL\n```"):
+            rc, _ = self.invoke(["write", "--spec", "design an integration", "--reference", "ref.py", "--target", "out.py"],
+                                [self.login(), subprocess.CompletedProcess([], 0, events(answer), "")])
+            self.assertEqual(rc, 1)
+            self.assertFalse((self.root / "out.py").exists())
+
     def test_api_session_is_rejected_before_model_call(self):
         login = subprocess.CompletedProcess([], 0, "Logged in using an API key", "")
         rc, runner = self.invoke(["read", "--question", "What?", "--paths", "ref.py"], [login])

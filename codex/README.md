@@ -1,7 +1,7 @@
 # Kirby for Codex
 
-Use **native Luna subagents** for substantial file reading and routine code
-generation. Your selected main model handles reasoning, integration, and review.
+Use **native Luna subagents** for substantial file reading and basic mechanical
+boilerplate writes. Your selected main model handles reasoning, integration, and review.
 The reader and writer use `gpt-5.6-luna` with medium reasoning effort.
 
 ## Install or update
@@ -21,7 +21,7 @@ unrelated hooks, settings, and sign-in.
 ## Use
 
 Ask Codex to work normally, or invoke `$kirby-luna`. Codex delegates bounded read
-or generation work when it can run independently alongside useful main-model
+or basic mechanical boilerplate work when it can run independently alongside useful main-model
 work. The main model reviews findings or generated changes and validates them.
 
 Small tasks and targeted reads stay with the main model. If native delegation or

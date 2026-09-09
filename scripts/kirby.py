@@ -62,9 +62,13 @@ READER_SYSTEM = (
     "If the answer requires an exact location, quote the surrounding line verbatim so it can be searched for."
 )
 WRITER_SYSTEM = (
-    "You generate code files based on a spec and reference files. Match the existing patterns, conventions, "
-    "naming, and style exactly. Output only the code: no explanations, no markdown fences. If the spec is "
-    "ambiguous, make reasonable choices that match the reference code's patterns."
+    "You may generate only basic mechanical boilerplate from an exact reference and explicit substitutions. "
+    "You must match the reference's conventions, naming, and style exactly. "
+    "You must not invent logic, infer behavior, choose test cases, or make implementation choices. "
+    "You must return KIRBY_NEEDS_MAIN_MODEL if the task is ambiguous, complex, or requires those choices. "
+    "You must use the same response for refactors, debugging, integrations, and security-sensitive changes. "
+    "Output size and detailed specs must not override these limits. "
+    "For eligible work, you must output only code without Markdown fences or explanations."
 )
 
 
@@ -307,6 +311,8 @@ def cmd_write(a: argparse.Namespace) -> None:
         + (f"\nOutput the complete contents of the file {a.target}." if a.target else "\nOutput the complete file.")
     )
     code = strip_fences(ask_worker(WRITER_SYSTEM, user))
+    if code.strip().startswith("KIRBY_NEEDS_MAIN_MODEL"):
+        sys.exit("kirby: worker returned the task to the main model; no file written")
     if a.target:
         Path(a.target).parent.mkdir(parents=True, exist_ok=True)
         Path(a.target).write_text(code, encoding="utf-8", newline="\n")
